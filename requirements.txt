@@ -1,0 +1,12 @@
+numpy
+matplotlib
+h5py
+scipy
+seaborn
+pandas
+networkx
+quantities
+neo
+elephant
+viziphant
+spikeinterface

@@ -3,7 +3,10 @@ containerbased MEA analysis
 
 ## Build the container
 ```bash
-docker build -t meaanalyzer:latest .
+#docker build -t meaanalyzer:latest .
+#Remove old image and build new
+docker rmi -f meaanalyzer:latest && docker build -t meaanalyzer:latest .
+
 ```
 ## Run the container
 ```bash

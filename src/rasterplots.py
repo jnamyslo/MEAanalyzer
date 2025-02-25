@@ -1,32 +1,31 @@
-#This code will create raster plots from .bxr files in a given directory.
-#The raster plots will be saved as .png and .svg files in a subdirectory called 'Rasterplots'.
-#The script will print a warning if the 'SpikeTimes' dataset is not found in the .bxr file.
-#The script will also print a warning if the 'SamplingRate' attribute is not found in the .bxr file.
-#The script will also create a separate raster plot for spikes, spike bursts, and network bursts.
-
 import os
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Funktion zum Erstellen des Rasterplots
-def raster_plots_main(filepath, save_as='svg', vector_output=False, dpi=600, output_dir='Rasterplots'):
+# Hauptfunktion zum Erstellen der Rasterplots
+def raster_plots_main(filepath, 
+                      save_as='svg', 
+                      vector_output=False, 
+                      dpi=600, 
+                      output_dir='Rasterplots'):
     with h5py.File(filepath, 'r') as file:
         well_id = 'Well_A1'
+        
+        # Prüfen, ob SpikeTimes vorhanden sind
         if well_id + '/SpikeTimes' in file:
             spike_times = np.array(file[well_id + '/SpikeTimes'])
             spike_channels = np.array(file[well_id + '/SpikeChIdxs'])
 
-            # Sampling Rate aus Attribut lesen
+            # Sampling Rate lesen
             if 'SamplingRate' in file.attrs:
                 sampling_rate = file.attrs['SamplingRate']
             else:
                 raise ValueError("Sampling rate not found in file attributes.")
 
-            # Zeit in Sekunden
             spike_times_sec = spike_times / sampling_rate
 
-            # Falls SpikeBurstTimes vorhanden
+            # Burst-Informationen (optional)
             if well_id + '/SpikeBurstTimes' in file:
                 burst_times = np.array(file[well_id + '/SpikeBurstTimes'])
                 burst_channels = np.array(file[well_id + '/SpikeBurstChIdxs'])
@@ -34,59 +33,56 @@ def raster_plots_main(filepath, save_as='svg', vector_output=False, dpi=600, out
                 burst_times = np.array([])
                 burst_channels = np.array([])
 
-            # Falls SpikeNetworkBurstTimes vorhanden
+            # Network-Burst-Informationen (optional)
             if well_id + '/SpikeNetworkBurstTimes' in file:
                 network_burst_times = np.array(file[well_id + '/SpikeNetworkBurstTimes'])
                 network_burst_times = network_burst_times / sampling_rate
             else:
                 network_burst_times = np.array([])
 
-            # Zuweisen der Channel-Indizes
+            # Kanäle abbilden
             unique_channels = np.unique(spike_channels)
             channel_map = {ch: idx for idx, ch in enumerate(unique_channels)}
 
-            # Spike-Daten pro Kanal sammeln
+            # Spikes pro Kanal
             spike_raster_data = [[] for _ in range(len(unique_channels))]
             for time, channel in zip(spike_times_sec, spike_channels):
                 spike_raster_data[channel_map[channel]].append(time)
 
-            # Burst-Daten pro Kanal sammeln
+            # Burststarts pro Kanal
             burst_raster_data = [[] for _ in range(len(unique_channels))]
             if burst_times.size > 0:
-                for burst_time, channel in zip(burst_times, burst_channels):
-                    burst_raster_data[channel_map[channel]].append(burst_time[0] / sampling_rate)
+                for (start, end), channel in zip(burst_times, burst_channels):
+                    burst_raster_data[channel_map[channel]].append(start / sampling_rate)
 
-            # Netzwerk-Burst-Daten pro Kanal sammeln
-            network_burst_raster_data = [[] for _ in range(len(unique_channels))]
-            if network_burst_times.size > 0:
-                for net_burst_time in network_burst_times:
-                    for channel_bursts in network_burst_raster_data:
-                        channel_bursts.append(net_burst_time[0])
+            # Kombinierten Plot erstellen
+            create_raster_plot(
+                spike_raster_data,
+                burst_raster_data,
+                network_burst_times,
+                filepath,
+                output_dir,
+                vector_output,
+                dpi
+            )
 
-            # Plot erzeugen
-            create_raster_plot(spike_raster_data,
-                               burst_raster_data,
-                               network_burst_raster_data,
-                               filepath,
-                               output_dir,
-                               vector_output,
-                               dpi)
-
-            # Separaten Plot erzeugen
-            create_separate_raster_plot(spike_raster_data,
-                                        burst_raster_data,
-                                        network_burst_raster_data,
-                                        filepath,
-                                        output_dir,
-                                        vector_output,
-                                        dpi)
+            # Separaten Plot erstellen
+            create_separate_raster_plot(
+                spike_raster_data,
+                burst_raster_data,
+                network_burst_times,
+                filepath,
+                output_dir,
+                vector_output,
+                dpi
+            )
         else:
             print(f"Warnung: 'SpikeTimes' nicht in {filepath} vorhanden.")
 
 # Kombinierter Rasterplot
 def create_raster_plot(spike_raster_data,
                        burst_raster_data,
-                       network_burst_raster_data,
+                       network_burst_times,
                        filepath,
                        output_dir,
                        vector_output,
@@ -95,8 +91,12 @@ def create_raster_plot(spike_raster_data,
     plt.eventplot(spike_raster_data, colors='black', linelengths=0.9)
     if any(burst_raster_data):
         plt.eventplot(burst_raster_data, colors='lightgreen', linelengths=0.7)
-    if any(network_burst_raster_data):
-        plt.eventplot(network_burst_raster_data, colors=[[1, 0, 0, 0.5]], linelengths=1.0)
+
+    # Network-Bursts als Farbbalken (Beginn bis Ende) über die gesamte Höhe
+    if network_burst_times.size > 0:
+        y_min, y_max = plt.ylim()
+        for (start, end) in network_burst_times:
+            plt.axvspan(start, end, ymin=0, ymax=1, color='red', alpha=0.3)
 
     filename = os.path.basename(filepath)
     plt.title(f'Raster Plot: {filename}')
@@ -108,7 +108,7 @@ def create_raster_plot(spike_raster_data,
     legend_elements = [
         Line2D([0], [0], color='black', lw=2, label='Spikes'),
         Line2D([0], [0], color='lightgreen', lw=2, label='Spike-Bursts'),
-        Line2D([0], [0], color=[1, 0, 0, 0.5], lw=2, label='Networkbursts')
+        Line2D([0], [0], color='red', lw=2, label='Networkbursts')
     ]
     plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
 
@@ -124,7 +124,7 @@ def create_raster_plot(spike_raster_data,
 # Getrennter Rasterplot
 def create_separate_raster_plot(spike_raster_data,
                                 burst_raster_data,
-                                network_burst_raster_data,
+                                network_burst_times,
                                 filepath,
                                 output_dir,
                                 vector_output,
@@ -150,14 +150,17 @@ def create_separate_raster_plot(spike_raster_data,
     axes[1].set_xlim(left=0)
     axes[1].set_ylim(-0.5, num_channels - 0.5)
 
-    # Networkbursts
-    if any(network_burst_raster_data):
-        axes[2].eventplot(network_burst_raster_data, colors=[[1, 0, 0, 0.5]], linelengths=1.0)
+    # Networkbursts als Farbbalken
+    axes[2].eventplot([], colors='red', linelengths=1.0)  # Dummy, nur für Legende
     axes[2].set_ylabel('Kanalindex')
     axes[2].set_title('Networkbursts')
     axes[2].set_xlabel('Zeit (s)')
     axes[2].set_xlim(left=0)
     axes[2].set_ylim(-0.5, num_channels - 0.5)
+    if network_burst_times.size > 0:
+        y_min, y_max = axes[2].get_ylim()
+        for (start, end) in network_burst_times:
+            axes[2].axvspan(start, end, ymin=0, ymax=1, color='red', alpha=0.3)
 
     plt.tight_layout()
 
@@ -166,11 +169,11 @@ def create_separate_raster_plot(spike_raster_data,
         plt.savefig(f'{output_basename}.svg', format='svg', bbox_inches='tight')
     plt.close()
 
-# Funktion zum rekursiven Durchsuchen des Verzeichnisses und Erstellen der Rasterplots
+# Funktion zum rekursiven Durchsuchen und Erstellen von Rasterplots
 def generate_raster_plots_for_all_files(root_dir):
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for filename in filenames:
-            if filename.endswith('.bxr'):
+            if filename.endswith('_NBT.bxr'):
                 filepath = os.path.join(dirpath, filename)
                 print(f"Erstelle Rasterplot für Datei: {filepath}")
                 output_dir = os.path.join(dirpath, 'Rasterplots')

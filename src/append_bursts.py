@@ -1,4 +1,3 @@
-# Calculating SpikeBursts and NetworkBursts based on existing Spikes of previous Spikedetection such as 3Brain BrainWave 5 or own Code
 import os
 import h5py
 import numpy as np
@@ -18,43 +17,60 @@ def detect_bursts(spike_times, isi_threshold_factor=0.8, min_spikes_in_burst=3):
     """
     if len(spike_times) < min_spikes_in_burst:
         return []
+    
+    # Spike-Zeiten sortieren
     spike_times = np.sort(spike_times)
+    # ISIs berechnen (Abstände zwischen aufeinanderfolgenden Spikes)
     isis = np.diff(spike_times)
-    median_isi = np.median(isis)
+    median_isi = np.median(isis) if len(isis) > 0 else 0
+    
+    # Schwellenwert: faktor * median_isi
     isi_threshold = isi_threshold_factor * median_isi
+    
     burst_start_indices = []
     burst_end_indices = []
+    
     in_burst = False
     burst_start = 0
 
     for i, isi in enumerate(isis):
         if isi <= isi_threshold:
             if not in_burst:
+                # Neuer Burst beginnt
                 in_burst = True
                 burst_start = i
         else:
             if in_burst:
+                # Burst endet
                 in_burst = False
-                burst_end = i + 1
+                burst_end = i + 1  # weil i sich auf isis bezieht
                 if (burst_end - burst_start) >= min_spikes_in_burst:
                     burst_start_indices.append(burst_start)
                     burst_end_indices.append(burst_end)
+    
+    # Falls letzter Burst bis zum Ende reicht
     if in_burst:
         burst_end = len(spike_times)
         if (burst_end - burst_start) >= min_spikes_in_burst:
             burst_start_indices.append(burst_start)
             burst_end_indices.append(burst_end)
 
-    burst_times = [(spike_times[start], spike_times[end - 1]) for start, end in zip(burst_start_indices, burst_end_indices)]
+    # Indizes in tatsächliche Zeitangaben umwandeln
+    burst_times = [
+        (spike_times[start], spike_times[end - 1])
+        for start, end in zip(burst_start_indices, burst_end_indices)
+    ]
     return burst_times
 
-def detect_network_bursts(bursts_per_channel, min_active_bursts=3, min_duration=0.1):
+def detect_network_bursts(bursts_per_channel, min_active_channels=3, min_duration=0.1):
     """
-    Erkennung von Netzwerk-Bursts nach dem Ansatz von Chiappalone.
+    Erkennung von Netzwerk-Bursts nach dem Ansatz von Chiappalone:
+    Ein Network-Burst beginnt, sobald mindestens 'min_active_channels' 
+    Kanäle gleichzeitig in einem Burst sind. 
     
     Parameters:
-    - bursts_per_channel: Dictionary mit Bursts pro Kanal.
-    - min_active_bursts: Minimal erforderliche Anzahl an gleichzeitig aktiven Einzel-Bursts.
+    - bursts_per_channel: Dictionary {Kanal: [(BurstStart, BurstEnd), ...]}
+    - min_active_channels: Minimale Anzahl an Kanälen, die gleichzeitig einen Burst haben müssen.
     - min_duration: Minimale Dauer eines Network-Bursts in Sekunden.
     
     Returns:
@@ -62,40 +78,45 @@ def detect_network_bursts(bursts_per_channel, min_active_bursts=3, min_duration=
     """
     burst_events = []
     
-    # Sammle alle Start- und End-Zeiten der Bursts als Events
+    # Erzeuge für jeden Kanal Start-/End-Events
+    # Format: (Zeitpunkt, +1 oder -1, KanalID)
     for channel_idx, bursts in bursts_per_channel.items():
-        for burst_start, burst_end in bursts:
-            burst_events.append((burst_start, +1))  # +1 für Burst-Start
-            burst_events.append((burst_end, -1))    # -1 für Burst-Ende
+        for (burst_start, burst_end) in bursts:
+            burst_events.append((burst_start, +1, channel_idx))
+            burst_events.append((burst_end, -1, channel_idx))
 
-    # Sortiere die Events nach Zeit (bei Gleichstand Start-Events vor End-Events)
+    # Sortiere die Events zeitlich (Start-Events vor End-Events bei gleicher Zeit)
+    # Damit bei exakten Gleichständen ein Kanal zunächst als "aktiv" gezählt wird
     burst_events.sort(key=lambda x: (x[0], -x[1]))
-
-    # Initialisierung der Netzwerk-Burst-Logik
-    active_bursts = 0
+    
+    active_channels = set()
     network_burst_start = None
     network_bursts = []
 
-    # Verarbeitung der Events
-    for time_event, delta in burst_events:
-        active_bursts += delta
+    for time_event, delta, ch_idx in burst_events:
+        if delta == +1:
+            # Kanal ch_idx startet einen Burst
+            active_channels.add(ch_idx)
+        else:
+            # Kanal ch_idx endet einen Burst
+            active_channels.discard(ch_idx)
 
-        if active_bursts >= min_active_bursts and network_burst_start is None:
-            # Neuer Network-Burst beginnt
+        # Prüfen, ob wir in einen neuen Network-Burst gehen
+        if len(active_channels) >= min_active_channels and network_burst_start is None:
             network_burst_start = time_event
-        elif active_bursts < min_active_bursts and network_burst_start is not None:
-            # Network-Burst endet
+        
+        # Prüfen, ob ein laufender Network-Burst beendet wird
+        elif len(active_channels) < min_active_channels and network_burst_start is not None:
             network_burst_end = time_event
-            duration = network_burst_end - network_burst_start
-            if duration >= min_duration:
+            # Mindestdauer prüfen
+            if (network_burst_end - network_burst_start) >= min_duration:
                 network_bursts.append((network_burst_start, network_burst_end))
             network_burst_start = None
 
-    # Falls ein Network-Burst am Ende nicht geschlossen wurde
+    # Falls am Ende noch ein Network-Burst "offen" ist
     if network_burst_start is not None:
         network_burst_end = burst_events[-1][0]
-        duration = network_burst_end - network_burst_start
-        if duration >= min_duration:
+        if (network_burst_end - network_burst_start) >= min_duration:
             network_bursts.append((network_burst_start, network_burst_end))
 
     return network_bursts
@@ -118,7 +139,13 @@ def load_spike_data(input_file):
         sampling_rate = f.attrs['SamplingRate']
     return spike_times, spike_channels, sampling_rate
 
-def save_burst_data(output_file, spike_times, spike_channels, SpikeBurstTimes, SpikeBurstChIdxs, SpikeNetworkBurstTimes, sampling_rate):
+def save_burst_data(output_file,
+                    spike_times,
+                    spike_channels,
+                    SpikeBurstTimes,
+                    SpikeBurstChIdxs,
+                    SpikeNetworkBurstTimes,
+                    sampling_rate):
     """
     Speichert die Burst-Ergebnisse in einer neuen .bxr-Datei.
     
@@ -143,15 +170,19 @@ def save_burst_data(output_file, spike_times, spike_channels, SpikeBurstTimes, S
         spike_grp.create_dataset('SpikeChIdxs', data=spike_channels, dtype=np.int32)
 
         # Burst-Daten hinzufügen
-        spike_grp.create_dataset('SpikeBurstTimes', data=np.array(SpikeBurstTimes, dtype=np.int64))
-        spike_grp.create_dataset('SpikeBurstChIdxs', data=np.array(SpikeBurstChIdxs, dtype=np.int32))
-        spike_grp.create_dataset('SpikeNetworkBurstTimes', data=np.array(SpikeNetworkBurstTimes, dtype=np.int64))
+        spike_grp.create_dataset('SpikeBurstTimes',
+                                 data=np.array(SpikeBurstTimes, dtype=np.int64))
+        spike_grp.create_dataset('SpikeBurstChIdxs',
+                                 data=np.array(SpikeBurstChIdxs, dtype=np.int32))
+        spike_grp.create_dataset('SpikeNetworkBurstTimes',
+                                 data=np.array(SpikeNetworkBurstTimes, dtype=np.int64))
 
         print(f"BXR-Datei '{output_file}' erfolgreich gespeichert.")
 
 def process_bxr_file(input_file):
     """
-    Verarbeitet eine bestehende .bxr-Datei, erkennt Bursts und NetworkBursts und speichert die Ergebnisse.
+    Verarbeitet eine bestehende .bxr-Datei, erkennt Bursts und NetworkBursts
+    und speichert die Ergebnisse in einer neuen Datei.
     
     Parameters:
     - input_file: Pfad zur bestehenden .bxr-Datei.
@@ -166,43 +197,36 @@ def process_bxr_file(input_file):
         
         # Organisiere Spikes pro Kanal
         spikes_per_channel = {}
-        for spike_time, channel_idx in zip(spike_times, spike_channels):
-            if channel_idx not in spikes_per_channel:
-                spikes_per_channel[channel_idx] = []
-            spikes_per_channel[channel_idx].append(spike_time)
+        for s_time, ch_idx in zip(spike_times, spike_channels):
+            spikes_per_channel.setdefault(ch_idx, []).append(s_time)
         
-        # Erkennung von Bursts pro Kanal
+        # Bursts pro Kanal erkennen
         bursts_per_channel = {}
-        total_bursts = 0
-        for channel_idx, times in spikes_per_channel.items():
-            bursts = detect_bursts(times)
-            bursts_per_channel[channel_idx] = bursts
-            total_bursts += len(bursts)
-            print(f"Kanal {channel_idx}: Erkannt {len(bursts)} Bursts.")
+        for ch_idx, times in spikes_per_channel.items():
+            bursts_per_channel[ch_idx] = detect_bursts(times)
         
-        # Vorbereitung der Burst-Daten zum Speichern
+        # Für die Ausgabe sammeln wir die einzelnen Bursts
         SpikeBurstTimes = []
         SpikeBurstChIdxs = []
-        
-        for channel_idx, bursts in bursts_per_channel.items():
-            for burst_start, burst_end in bursts:
+        for ch_idx, bursts in bursts_per_channel.items():
+            for (burst_start, burst_end) in bursts:
                 SpikeBurstTimes.append((burst_start, burst_end))
-                SpikeBurstChIdxs.append(channel_idx)
+                SpikeBurstChIdxs.append(ch_idx)
         
-        # NetworkBurstdetection
+        # Network-Bursts nach Chiappalone:
         SpikeNetworkBurstTimes = detect_network_bursts(
             bursts_per_channel,
-            min_active_bursts=30,  # Schwellenwert für aktive Einzel-Bursts
-            min_duration=0.1       # Minimale Dauer in Sekunden
+            min_active_channels=30,
+            min_duration=0.1
         )
         
-        print(f"Gesamt erkannt {len(SpikeNetworkBurstTimes)} NetworkBursts.")
-        
-        # Erstellen des Ausgabepfads
+        print(f"Erkannte NetworkBursts: {len(SpikeNetworkBurstTimes)}")
+
+        # Ausgabedateiname festlegen
         base, ext = os.path.splitext(input_file)
         output_file = f"{base}_BT_NBT{ext}"
         
-        # Speichern der Daten in eine neue .bxr-Datei
+        # Ergebnisse speichern
         save_burst_data(
             output_file,
             spike_times,
@@ -214,8 +238,8 @@ def process_bxr_file(input_file):
         )
         
         end_time = time.time()
-        print(f"Verarbeitung abgeschlossen. Ergebnisse wurden gespeichert in: {output_file}")
-        print(f"Ausführungszeit für diese Datei: {end_time - start_time:.2f} Sekunden\n")
+        print(f"Verarbeitung abgeschlossen. Datei gespeichert unter: {output_file}")
+        print(f"Dauer: {end_time - start_time:.2f} Sekunden\n")
         
     except Exception as e:
         print(f"Fehler bei der Verarbeitung der Datei '{input_file}': {e}\n")
@@ -228,7 +252,7 @@ def find_bxr_files(folder_path):
     - folder_path: Pfad zum Hauptordner.
     
     Returns:
-    - List of .bxr file paths.
+    - Liste aller gefundenen .bxr-Dateipfade.
     """
     bxr_files = []
     for root, dirs, files in os.walk(folder_path):
@@ -257,7 +281,7 @@ def process_all_bxr_files(folder_path):
         process_bxr_file(bxr_file)
     
     end_time = time.time()
-    print(f"Es wurde bei allen Dateien die Bursts und Networkbursts angehängt. Gesamtzeit: {end_time - start_time:.2f} Sekunden.")
+    print(f"Fertig. Gesamtzeit: {end_time - start_time:.2f} Sekunden.")
 
 def main():
     folder_path = "data"

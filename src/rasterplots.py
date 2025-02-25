@@ -182,6 +182,6 @@ def generate_raster_plots_for_all_files(root_dir):
 
 # Hauptprogramm
 if __name__ == "__main__":
-    root_dir = "data/NB_Spiketrains"
+    root_dir = "data"
     generate_raster_plots_for_all_files(root_dir)
     print("Alle Rasterplots wurden erstellt.")

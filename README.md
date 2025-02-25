@@ -7,7 +7,7 @@ docker build -t meaanalyzer:latest .
 ```
 ## Run the container
 ```bash
-docker run -v /path/to/data/:/app/data meaanalyzer:latest
+docker run -rm -v /path/to/data/:/app/data meaanalyzer:latest
 ```
 To avoid rebuilding the container every time, you can mount your local directory: add `-v .:/app` into the run command, when starting in the current working directory.
 

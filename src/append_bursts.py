@@ -192,7 +192,7 @@ def process_bxr_file(input_file):
         # NetworkBurstdetection
         SpikeNetworkBurstTimes = detect_network_bursts(
             bursts_per_channel,
-            min_active_bursts=3,  # Schwellenwert für aktive Einzel-Bursts
+            min_active_bursts=30,  # Schwellenwert für aktive Einzel-Bursts
             min_duration=0.1       # Minimale Dauer in Sekunden
         )
         

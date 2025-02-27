@@ -395,8 +395,8 @@ def main():
                             all_features_data[feat_key][str(idx)][group].append(feat_val)
 
     # Boxplots über Gruppen und Zeitverläufe
-    inter_group_output_dir = os.path.join(parent_dir, 'Inter_Group_Boxplots')
-    plot_feature_values_over_time(all_features_data, inter_group_output_dir)
+    #inter_group_output_dir = os.path.join(parent_dir, 'Inter_Group_Boxplots')
+    #plot_feature_values_over_time(all_features_data, inter_group_output_dir)
 
     print("Fertig. Alle Boxplots wurden erstellt.")
 

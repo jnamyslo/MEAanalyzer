@@ -3,14 +3,16 @@ containerbased MEA analysis
 
 ## Build the container
 ```bash
-docker build -t meaanalyzer:latest .
+#docker build -t meaanalyzer:latest .
 #Remove old image and build new
 docker rmi -f meaanalyzer:latest && docker build -t meaanalyzer:latest .
 
 ```
 ## Run the container
 ```bash
-docker run --rm -v /path/to/data/:/app/data meaanalyzer:latest
+docker run -d --rm -v /path/to/data/:/app/data meaanalyzer:latest
+
+docker logs -f <CONTAINER-ID>
 ```
 To avoid rebuilding the container every time, you can mount your local directory: add `-v .:/app` into the run command, when starting in the current working directory.
 

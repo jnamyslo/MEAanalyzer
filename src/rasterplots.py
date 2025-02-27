@@ -151,7 +151,7 @@ def create_separate_raster_plot(spike_raster_data,
     axes[1].set_ylim(-0.5, num_channels - 0.5)
 
     # Networkbursts als Farbbalken
-    axes[2].eventplot([], colors='red', linelengths=1.0)  # Dummy, nur für Legende
+    axes[2].eventplot([], colors='red', linelengths=1.0) # Dummy plot for legend
     axes[2].set_ylabel('Kanalindex')
     axes[2].set_title('Networkbursts')
     axes[2].set_xlabel('Zeit (s)')

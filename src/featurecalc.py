@@ -195,7 +195,7 @@ def process_file(file, well_id='Well_A1'):
                 mean_pearson_corr = np.mean(pearson_corr_matrix[upper_triangle_indices])
 
                 # Schwellenwert und Anzahl Verbindungen
-                connectivity_threshold = 0.21
+                connectivity_threshold = 0.20
                 connectivity_matrix = (pearson_corr_matrix > connectivity_threshold).astype(int)
                 np.fill_diagonal(connectivity_matrix, 0)
                 num_connections = np.sum(connectivity_matrix) / 2

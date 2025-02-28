@@ -81,7 +81,7 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
         plt.close()
 
 def main():
-    parent_dir = input("Bitte geben Sie den Pfad zum übergeordneten Verzeichnis ein: ").strip()
+    parent_dir = "data"
 
     label_file_path = os.path.join(parent_dir, "labels.txt")
     if os.path.isfile(label_file_path):

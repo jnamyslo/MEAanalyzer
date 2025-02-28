@@ -173,7 +173,7 @@ def create_separate_raster_plot(spike_raster_data,
 def generate_raster_plots_for_all_files(root_dir):
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for filename in filenames:
-            if filename.endswith('.bxr'):
+            if filename.endswith('NBT.bxr'):
                 filepath = os.path.join(dirpath, filename)
                 print(f"Erstelle Rasterplot für Datei: {filepath}")
                 output_dir = os.path.join(dirpath, 'Rasterplots')

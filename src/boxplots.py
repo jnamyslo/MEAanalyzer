@@ -132,6 +132,7 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
 
         ax.set_title("Relative Veränderung der " + feature_name + " zur Referenzmessung", fontsize=14)
         ax.set_ylabel("Relative Änderung", fontsize=12)
+        ax.set_yscale('symlog', linthresh=0.5)
         ax.set_xticks(range(len(time_indices_sorted)))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)

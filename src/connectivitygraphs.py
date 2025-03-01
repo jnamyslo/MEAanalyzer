@@ -76,8 +76,8 @@ def plot_connectivity_graph(filepath, output_dir, connectivity_threshold,
                                              edge_cmap=plt.cm.viridis, 
                                              edge_vmin=0, edge_vmax=1, width=0.1)
 
-    plt.colorbar(edge_collection, label='Pearson-Correlation')
-    plt.title(f'Connectivity Graph for {os.path.basename(filepath)}')
+    plt.colorbar(edge_collection, label='Pearson-Correlation').set_label('Pearson-Correlation', fontsize=12)
+    plt.title(f'{os.path.basename(filepath)}', fontsize=16)
     plt.gca().set_aspect('equal', adjustable='box')
 
     plt.savefig(output_path, format='png', dpi=dpi, bbox_inches='tight')
@@ -118,7 +118,7 @@ def process_all_bxr_files_in_directory(root_dir, connectivity_threshold,
             print(f'Verarbeite Ordner: {folder_name}')
             individual_plots = []
             for file in files:
-                if file.endswith('_BT_NBT.bxr'):
+                if file.endswith('.bxr'):
                     filepath = os.path.join(subdir, file)
                     print(f'  Verarbeite Datei: {file}')
                     plot_path = plot_connectivity_graph(
@@ -141,9 +141,9 @@ def process_all_bxr_files_in_directory(root_dir, connectivity_threshold,
 
 def main():
     root_dir = "data"
-    connectivity_threshold = 0.20
-    max_connections_per_node = 10
-    betweenness_threshold = 0.1
+    connectivity_threshold = 0.2
+    max_connections_per_node = 20
+    betweenness_threshold = 0.8 # Hauptparameter um geplottete Netzwerkdichte zu definieren. Zur Vergleichbarkeit pro Experiment den Parameter nicht ändern!
 
     if not os.path.isdir(root_dir):
         print('Der angegebene Pfad ist kein gültiges Verzeichnis.')

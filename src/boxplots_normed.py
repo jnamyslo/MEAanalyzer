@@ -1,11 +1,3 @@
-#For custom labels create an labels.txt in your experiment root directory with the following content:
-#Label1;Label2;Label3
-#This will be used as the x-axis labels for the boxplots.
-#The script will create a separate boxplot for each feature in the .npz files.
-#The boxplots will be grouped by the group names and the time indices of the .npz files.
-#The boxplots will be saved as .png files in a subdirectory called 'Inter_Group_Boxplots'.
-#The script will also print a warning if the custom labels are not found or the number of labels does not match the number of time indices.
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,6 +20,7 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
             group_names.update(time_dict[t].keys())
         group_names = sorted(list(group_names))
 
+        # Daten in einer Struktur für das Boxplot sammeln
         data_for_boxplot = []
         for t in time_indices_sorted:
             group_list_for_this_time = []
@@ -36,15 +29,13 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
                 group_list_for_this_time.append(group_values)
             data_for_boxplot.append(group_list_for_this_time)
 
+        # Plot 1: Normaler Plot
         fig, ax = plt.subplots(figsize=(10, 6))
         n_times = len(time_indices_sorted)
         n_groups = len(group_names)
         width = 0.6 / n_groups
+        colors = plt.cm.Set1.colors
 
-        colors = plt.cm.Set1.colors  # Farbschema Set1
-
-        # Boxplots pro Zeitindex und Gruppe
-        # showfliers=False unterdrückt das Zeichnen der Ausreißer, wodurch der Plot weniger "gestaucht" wirkt.
         for time_idx, group_values_list in enumerate(data_for_boxplot):
             for group_idx, group_values in enumerate(group_values_list):
                 position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
@@ -53,8 +44,7 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
                                 widths=width,
                                 patch_artist=True,
                                 manage_ticks=False,
-                                showfliers=False  # <-- Ausreißer nicht anzeigen
-                                )
+                                showfliers=False)
                 for box in bp['boxes']:
                     box.set(facecolor=colors[group_idx % len(colors)])
 
@@ -63,8 +53,6 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
         ax.set_xticks(range(len(time_indices_sorted)))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
-        # Setzen der Achsenbeschriftung auf logarithmisch, falls gewünscht
-        #ax.set_yscale('log')
 
         legend_patches = [
             plt.Line2D([0], [0], color=colors[idx % len(colors)],
@@ -78,6 +66,81 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
         plt.tight_layout()
         filename_safe = feature_name.replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_')
         plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot.png'), dpi=300)
+        plt.close()
+
+        # Plot 2: Log-Skala
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for time_idx, group_values_list in enumerate(data_for_boxplot):
+            for group_idx, group_values in enumerate(group_values_list):
+                position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
+                bp = ax.boxplot(group_values,
+                                positions=[position],
+                                widths=width,
+                                patch_artist=True,
+                                manage_ticks=False,
+                                showfliers=False)
+                for box in bp['boxes']:
+                    box.set(facecolor=colors[group_idx % len(colors)])
+
+        ax.set_title(feature_name + " (log-Skala)", fontsize=14)
+        ax.set_ylabel(feature_name, fontsize=12)
+        ax.set_yscale('log')  # Logarithmische Achse
+        ax.set_xticks(range(len(time_indices_sorted)))
+        ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
+        ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
+        ax.legend(handles=legend_patches, title="Gruppen", loc='lower left',
+                  bbox_to_anchor=(0.5, -0.15), ncol=len(group_names),
+                  fontsize=10, title_fontsize=12)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot_log.png'), dpi=300)
+        plt.close()
+
+        # Plot 3: Relative Veränderung (Normierung auf den ersten Datenpunkt pro Gruppe)
+        # Hier wird für jede Gruppe der Mittelwert des ersten Zeitpunkts als Referenz genommen
+        # und alle Werte werden darauf bezogen.
+        data_for_boxplot_relative = []
+        # Mittelwerte für die Normierung erfassen (erster Zeitindex)
+        ref_means_per_group = []
+        first_time_idx_data = data_for_boxplot[0]
+        for group_idx, group_values in enumerate(first_time_idx_data):
+            if len(group_values) > 0:
+                ref_means_per_group.append(np.mean(group_values))
+            else:
+                ref_means_per_group.append(1.0)  # Fallback, um Division durch 0 zu vermeiden
+
+        for time_idx, group_values_list in enumerate(data_for_boxplot):
+            group_list_for_this_time_rel = []
+            for group_idx, group_values in enumerate(group_values_list):
+                if ref_means_per_group[group_idx] != 0:
+                    norm_values = [val / ref_means_per_group[group_idx] for val in group_values]
+                else:
+                    norm_values = group_values
+                group_list_for_this_time_rel.append(norm_values)
+            data_for_boxplot_relative.append(group_list_for_this_time_rel)
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for time_idx, group_values_list in enumerate(data_for_boxplot_relative):
+            for group_idx, group_values in enumerate(group_values_list):
+                position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
+                bp = ax.boxplot(group_values,
+                                positions=[position],
+                                widths=width,
+                                patch_artist=True,
+                                manage_ticks=False,
+                                showfliers=False)
+                for box in bp['boxes']:
+                    box.set(facecolor=colors[group_idx % len(colors)])
+
+        ax.set_title(feature_name + " (relative Veränderung)", fontsize=14)
+        ax.set_ylabel("Relative " + feature_name, fontsize=12)
+        ax.set_xticks(range(len(time_indices_sorted)))
+        ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
+        ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
+        ax.legend(handles=legend_patches, title="Gruppen", loc='lower left',
+                  bbox_to_anchor=(0.5, -0.15), ncol=len(group_names),
+                  fontsize=10, title_fontsize=12)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot_rel.png'), dpi=300)
         plt.close()
 
 def main():
@@ -94,7 +157,6 @@ def main():
         print("Keine benutzerdefinierten Labels gefunden.")
 
     groups = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]
-
     all_features_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for group in groups:

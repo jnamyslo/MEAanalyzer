@@ -11,6 +11,15 @@ def raster_plots_main(filepath,
                       vector_output=False, 
                       dpi=600, 
                       output_dir='Rasterplots'):
+    filename_base = os.path.splitext(os.path.basename(filepath))[0]
+    rasterplot_path = os.path.join(output_dir, f'{filename_base}_raster_plot.png')
+    separate_rasterplot_path = os.path.join(output_dir, f'{filename_base}_separate_raster_plot.png')
+    
+    # Überprüfung, ob die Rasterplots bereits existieren
+    if os.path.exists(rasterplot_path) and os.path.exists(separate_rasterplot_path):
+        print(f"Überspringe {filepath}, Rasterplots existieren bereits.")
+        return
+    
     with h5py.File(filepath, 'r') as file:
         well_id = 'Well_A1'
         
@@ -38,7 +47,6 @@ def raster_plots_main(filepath,
             else:
                 network_burst_times = np.array([])
 
-            # Fix: Alle 4096 Kanäle anlegen, unabhängig davon, ob sie genutzt werden
             spike_raster_data = [[] for _ in range(TOTAL_CHANNELS)]
             for time, channel in zip(spike_times_sec, spike_channels):
                 spike_raster_data[channel].append(time)
@@ -70,7 +78,6 @@ def raster_plots_main(filepath,
         else:
             print(f"Warnung: 'SpikeTimes' nicht in {filepath} vorhanden.")
 
-# Kombinierter Rasterplot
 def create_raster_plot(spike_raster_data,
                        burst_raster_data,
                        network_burst_times,
@@ -85,7 +92,7 @@ def create_raster_plot(spike_raster_data,
 
     if network_burst_times.size > 0:
         for (start, end) in network_burst_times:
-            plt.axvspan(start, end, ymin=0, ymax=1.0, color='red', alpha=0.3)
+            plt.axvspan(start, end, ymin=0.95, ymax=1.0, color='red', alpha=0.3)
 
     filename = os.path.basename(filepath)
     plt.title(f'Raster Plot: {filename}')
@@ -158,17 +165,15 @@ def create_separate_raster_plot(spike_raster_data,
         plt.savefig(f'{output_basename}.svg', format='svg', bbox_inches='tight')
     plt.close()
 
-# Funktion zum rekursiven Durchsuchen und Erstellen von Rasterplots
 def generate_raster_plots_for_all_files(root_dir):
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for filename in filenames:
-            if filename.endswith('NBT.bxr'):
+            if filename.endswith('.bxr'):
                 filepath = os.path.join(dirpath, filename)
-                print(f"Erstelle Rasterplot für Datei: {filepath}")
                 output_dir = os.path.join(dirpath, 'Rasterplots')
+                print(f"Plotte Datei: {filepath}")
                 try:
                     raster_plots_main(filepath, output_dir=output_dir)
-                    print(f"Rasterplot gespeichert in: {output_dir}")
                 except Exception as e:
                     print(f"Fehler beim Verarbeiten von {filepath}: {e}")
 

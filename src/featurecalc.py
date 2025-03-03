@@ -36,6 +36,8 @@ import quantities as pq
 from neo import SpikeTrain
 from elephant.spike_train_synchrony import spike_contrast
 from viziphant.spike_train_synchrony import plot_spike_contrast
+from elephant.functional_connectivity import total_spiking_probability_edges
+from elephant.conversion import BinnedSpikeTrain
 from collections import defaultdict
 
 # GPU-Beschleunigung
@@ -210,7 +212,7 @@ def process_file(file, well_id='Well_A1'):
             mean_pearson_corr = 0
             num_connections = 0
 
-        # Spike Contrast
+        # Spike Contrast (https://elephant.readthedocs.io/en/latest/reference/_toctree/spike_train_synchrony/elephant.spike_train_synchrony.spike_contrast.html#elephant.spike_train_synchrony.spike_contrast)
         spike_trains = []
         if spike_times_sec.size > 0:
             t_start = spike_times_sec.min() * pq.s
@@ -240,6 +242,27 @@ def process_file(file, well_id='Well_A1'):
             synchrony_with_trace = 0
             spike_contrast_trace = None
 
+        # Total Spiking Probability Edges (TSPE) (https://elephant.readthedocs.io/en/latest/reference/_toctree/functional_connectivity/elephant.functional_connectivity.total_spiking_probability_edges.html)
+        try:
+            binned_ST = BinnedSpikeTrain(spike_trains, bin_size=1*pq.s, n_bins=None, t_start=None, 
+                                         t_stop=None, tolerance=1e-08, sparse_format='csr')
+            tsp_matrix, tsp_delay = total_spiking_probability_edges(
+                spike_trains=binned_ST,
+                surrounding_window_sizes=[3, 4, 5, 6, 7, 8],  # Angepasste Bin-Größe
+                observed_window_sizes=[2, 3, 4, 5, 6],
+                crossover_window_sizes=[0],
+                max_delay=25,
+                normalize=False
+            )
+            #print("TSPE-Matrix:", tsp_matrix)
+            # tsp_matrix ist ein nxn numpy Array
+            mean_tsp = np.mean(tsp_matrix)
+            #print("Durchschnittliche TSPE:", mean_tsp)
+        except Exception as e:
+            print(f"Fehler bei der Berechnung von TSPE: {e}")
+            tsp_matrix = np.array([])
+            mean_tsp = np.nan
+
         # Features speichern
         features = {
             'Spike Rate (Hz)': spike_rate,
@@ -258,6 +281,7 @@ def process_file(file, well_id='Well_A1'):
             'Synchrony (Mean Pearson-Correlation)': mean_pearson_corr,
             'Connectivity (Number of Connections)': num_connections,
             'Synchrony (Spike Contrast)': synchrony_with_trace,
+            'Mean TSPE': mean_tsp
         }
 
         # Falls Spike Contrast Trace existiert, zusätzliche Ergebnisse
@@ -276,7 +300,9 @@ def process_file(file, well_id='Well_A1'):
             pearson_corr_matrix=pearson_corr_matrix,
             connectivity_matrix=connectivity_matrix,
             unique_channels=unique_channels,
-            num_channels=num_channels
+            num_channels=num_channels,
+            tsp_matrix=tsp_matrix,
+            tsp_delay=tsp_delay
         )
 
         # Plot Spike Contrast Trace
@@ -381,7 +407,7 @@ def main():
             chip_path = os.path.join(group_path, chip_dir)
 
             # .bxr-Dateien in aufsteigender Reihenfolge
-            bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('_BT_NBT.bxr')])
+            bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('_NBT.bxr')])
 
             # Jede Datei repräsentiert einen Zeit-Index
             for idx, bxr_file in enumerate(bxr_files, start=1):
@@ -398,7 +424,7 @@ def main():
     #inter_group_output_dir = os.path.join(parent_dir, 'Inter_Group_Boxplots')
     #plot_feature_values_over_time(all_features_data, inter_group_output_dir)
 
-    print("Fertig. Alle Boxplots wurden erstellt.")
+    print("Fertig. Alle Features wurden berechnet.")
 
 if __name__ == "__main__":
     main()

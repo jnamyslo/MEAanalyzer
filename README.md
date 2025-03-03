@@ -1,30 +1,139 @@
-# MEAexplorer
-containerbased MEA analysis
+# MEAanalyzer
 
-## Build the container
+A containerized pipeline for analyzing Multi-Electrode Array (MEA) recordings with automated burst detection, feature calculation, visualization, and statistical analysis.
+
+## Overview
+
+MEAanalyzer is a comprehensive tool for neuronal activity analysis from MEA recordings. It performs:
+
+- Burst detection (single-electrode and network-level)
+- Feature calculation (spike rates, ISI, synchrony measures)
+- Visualization (raster plots, boxplots, connectivity graphs)
+- Statistical analysis between experimental groups
+
+### Spike Detection Options
+
+Before running MEAanalyzer, you need spike-detected MEA recordings. You have two options:
+
+1. **Open-source method**: Use our companion spike detection repository [MEAexplorer](https://github.com/tivenide/MEAexplorer) to process raw MEA recordings (.brw) and generate .bxr files with detected spikes. This Repo was also developed in the BioMEMS Lab of TH-AB.
+
+2. **Commercial software**: Alternatively, use BrainWave 5 from 3Brain, which offers comprehensive spike detection capabilities. If your files already contain spike detection through BrainWave 5, you can skip the `append_bursts_computeIntense.py` or `append_bursts.py` modules in the pipeline, as burst detection will be handled directly from the pre-processed files.
+
+Choose the option that best fits your workflow and data processing needs.
+
+## Getting Started
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) installed on your system
+- MEA recording data in .bxr format
+
+### Clone the Repository
+
 ```bash
-#docker build -t meaanalyzer:latest .
-#Remove old image and build new
+git clone https://github.com/yourusername/MEAanalyzer.git
+cd MEAanalyzer
+```
+
+### Build the Docker Container
+
+```bash
+docker build -t meaanalyzer:latest .
+```
+
+To rebuild the container after changes:
+
+```bash
 docker rmi -f meaanalyzer:latest && docker build -t meaanalyzer:latest .
+```
+
+### Input Data Structure
+
+The pipeline requires a specific folder structure for proper analysis:
 
 ```
-## Run the container
-```bash
-docker run -d --rm -v /path/to/data/:/app/data meaanalyzer:latest
+data/
+├── GROUP1/              # Experimental group (e.g., "SHAM", "BDNF")
+│   ├── ID2024-01/       # Individual sample identifier
+│   │   ├── file1.bxr    # MEA recording files
+│   │   └── file2.bxr
+│   └── ID2024-03/
+│       ├── file1.bxr
+│       └── file2.bxr
+└── GROUP2/
+    ├── ID2024-02/
+    │   ├── file1.bxr
+    │   └── file2.bxr
+    └── ID2024-04/
+        ├── file1.bxr
+        └── file2.bxr
+```
 
+**Important Notes:**
+- Group folders represent experimental conditions
+- ID folders represent individual samples/chips
+- Files are processed in alphabetical order and treated as sequential time points
+- You can optionally include a `labels.txt` file in the data directory with semicolon-separated labels for timepoints. Make sure to have an equal amount of files in each Chip-Folder. Make also sure to provide the same amount of labels in your `labels.txt`, otherwise it will not be used.
+
+### Custom Labels
+
+To use custom labels for time points, add a file named `labels.txt` in your data directory:
+
+```
+Baseline;Treatment 1h;Treatment 24h;Recovery
+```
+
+### Run the Analysis
+
+Mount your data directory and run the container:
+
+```bash
+docker run -d --rm -v /path/to/your/data:/app/data meaanalyzer:latest
+```
+
+To follow the logs:
+
+```bash
 docker logs -f <CONTAINER-ID>
 ```
-To avoid rebuilding the container every time, you can mount your local directory: add `-v .:/app` into the run command, when starting in the current working directory.
 
-For debugging you have to set the ports according to your debugpy config: add `-p 5678:5678` into the run command.
+## Customizing the Pipeline
 
-Example:
+You can customize which modules run by editing the `start.sh` file:
+
 ```bash
-docker run --rm -v .:/app -v /path/to/data/:/app/data meaexplorer:latest .
+#!/bin/sh
+
+python src/append_bursts_computeIntense.py  # Burst detection
+python src/rasterplots.py                   # Generate raster plots
+python src/featurecalc_tspe.py              # Calculate features
+python src/boxplots.py                      # Generate box plots
+python src/statistic.py                     # Statistical analysis
+python src/connectivitygraphs.py            # Generate connectivity graphs
 ```
 
-## Default folder structure
-```
-data/GROUPX/CHIPX
-```
-Also see `src/featurecalc.py`
+### Module Dependencies
+
+- **append_bursts_computeIntense.py**: Entry point that processes raw .bxr files and adds burst detection
+  - Alternative: append_bursts.py (faster but less precise burst detection)
+- **rasterplots.py**: Creates visualizations of spike activity (depends on burst detection)
+- **featurecalc_tspe.py**: Calculates neural activity features (depends on burst detection)
+  - Alternative: featurecalc.py (without TSPE connectivity metrics) 
+- **boxplots.py**: Generates boxplots for comparing groups (depends on feature calculation)
+- **statistic.py**: Performs statistical analysis between groups (depends on feature calculation)
+- **connectivitygraphs.py**: Generates network visualization (depends on feature calculation)
+
+## Output
+
+The analysis generates multiple outputs in your data directory:
+
+- Processed .bxr files with burst detection
+- Raster plots of neural activity
+- Feature calculation files (.npz)
+- Statistical comparison results
+- Box plots of features across time points
+- Connectivity network visualizations
+
+## Contact
+
+Jannick Namyslo (s180537@th-ab.de)

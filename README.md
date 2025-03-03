@@ -55,6 +55,7 @@ The pipeline requires a specific folder structure for proper analysis:
 
 ```
 data/
+├── labels.txt (optional)
 ├── GROUP1/              # Experimental group (e.g., "SHAM", "BDNF")
 │   ├── ID2024-01/       # Individual sample identifier
 │   │   ├── file1.bxr    # MEA recording files
@@ -138,8 +139,6 @@ The analysis generates multiple outputs in your data directory:
 - Statistical comparison results
 - Box plots of features across time points
 - Connectivity network visualizations
-
-![Example Output Structure](sample_images/Results.png)
 
 ## Contact
 

@@ -102,7 +102,7 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
 
         for group_idx, group_values in enumerate(first_time_idx_data):
             if len(group_values) > 0:
-                ref_means_per_group.append(np.mean(group_values))
+                ref_means_per_group.append(np.median(group_values))
             else:
                 ref_means_per_group.append(1.0)
 

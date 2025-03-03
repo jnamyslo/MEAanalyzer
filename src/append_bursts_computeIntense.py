@@ -7,7 +7,14 @@ import time
 
 def detect_bursts(spike_times, isi_threshold_factor=0.8, min_spikes_in_burst=3):
     """
-    Erkennung von Bursts nach Chiappalone.
+    Erkennung von Bursts nach Baker et al.
+    Parameters:
+    - spike_times: Liste der Spike-Zeitpunkte.
+    - isi_threshold_factor: Faktor zur Bestimmung des ISI-Schwellenwerts.
+    - min_spikes_in_burst: Minimale Anzahl von Spikes in einem Burst.
+    
+    Returns:
+    - burst_times: Liste von Tupeln (Burst-Start, Burst-Ende).
     """
     if len(spike_times) < min_spikes_in_burst:
         return []
@@ -51,6 +58,17 @@ def detect_network_bursts(spikes_per_channel, bin_size=0.025, threshold=9, min_d
     """
     Erkennt Network-Bursts basierend auf der Synchronisation von Aktivität über mehrere Kanäle.
     Stellt sicher, dass überlappende Network-Bursts zu einem Ereignis zusammengefasst werden.
+
+    Erkennung von Netzwerk-Bursts nach dem Ansatz von Chiappalone:
+    
+    Parameters:
+    - spikes_per_channel: Dictionary {Kanal: [SpikeTimes, ...]} mit Spike-Zeiten pro Kanal
+    - bin_size: Zeitfenstergröße in Sekunden für die Analyse der synchronen Aktivität
+    - threshold: Schwellenwert für das Produkt aus aktiven Kanälen und Spike-Anzahl
+    - min_duration: Minimale Dauer eines Network-Bursts in Sekunden
+    
+    Returns:
+    - network_bursts: Liste von Tupeln (NetworkBurst-Start, NetworkBurst-Ende)
     """
     if not spikes_per_channel:
         return []

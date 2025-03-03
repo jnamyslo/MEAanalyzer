@@ -168,7 +168,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
         # Get reference values for each group
         for group_idx, group_values in enumerate(first_time_idx_data):
             if len(group_values) > 0:
-                ref_means_per_group.append(np.mean(group_values))
+                ref_means_per_group.append(np.median(group_values))
             else:
                 ref_means_per_group.append(1.0)  # Avoid division by zero
         
@@ -264,7 +264,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
         ax.set_ylabel(f"Relative Change (normalized to reference)", fontsize=12)
         
         # Use symlog scale like in boxplots.py
-        ax.set_yscale('symlog', linthresh=0.5)
+        #ax.set_yscale('symlog', linthresh=0.5)
         
         # Add reference line at y=0
         ax.axhline(y=0, color='gray', linestyle='--', alpha=0.7)

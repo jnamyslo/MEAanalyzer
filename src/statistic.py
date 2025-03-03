@@ -29,24 +29,41 @@ def perform_statistical_test(group1_data, group2_data):
     
     Handles both scalar and array-like data
     """
-    # Handle case where input might be arrays - extract single values if needed
-    if isinstance(group1_data, (list, np.ndarray)) and len(group1_data) > 0:
-        # Check if elements are arrays themselves (like with Spike Contrast)
-        if hasattr(group1_data[0], 'shape') and hasattr(group1_data[0], 'size') and group1_data[0].size > 1:
-            # Extract maximum value from each array (max synchrony)
-            group1_data = [np.max(item) if hasattr(item, 'max') else item for item in group1_data]
+    # Ensure we have scalar values
+    group1_flat = []
+    group2_flat = []
     
-    if isinstance(group2_data, (list, np.ndarray)) and len(group2_data) > 0:
-        if hasattr(group2_data[0], 'shape') and hasattr(group2_data[0], 'size') and group2_data[0].size > 1:
-            group2_data = [np.max(item) if hasattr(item, 'max') else item for item in group2_data]
+    # Extract scalar values from group1
+    for item in group1_data:
+        # For Spike Contrast (synchrony_with_trace), extract the synchrony value
+        if isinstance(item, dict) and 'synchrony' in item:
+            group1_flat.append(item['synchrony'])
+        elif isinstance(item, (list, np.ndarray)) and hasattr(item, 'size') and item.size > 1:
+            # For other array-like data, use max
+            group1_flat.append(np.max(item))
+        else:
+            # For scalar values
+            group1_flat.append(item)
+    
+    # Extract scalar values from group2
+    for item in group2_data:
+        # For Spike Contrast (synchrony_with_trace), extract the synchrony value
+        if isinstance(item, dict) and 'synchrony' in item:
+            group2_flat.append(item['synchrony'])
+        elif isinstance(item, (list, np.ndarray)) and hasattr(item, 'size') and item.size > 1:
+            # For other array-like data, use max
+            group2_flat.append(np.max(item))
+        else:
+            # For scalar values
+            group2_flat.append(item)
     
     # Now continue with original function logic
-    if len(group1_data) == 0 or len(group2_data) == 0:
+    if len(group1_flat) == 0 or len(group2_flat) == 0:
         return 1.0, "No data"
     
     # Convert to flat numpy arrays to handle various input types
-    group1_data_flat = np.asarray(group1_data).flatten()
-    group2_data_flat = np.asarray(group2_data).flatten()
+    group1_data_flat = np.asarray(group1_flat).flatten()
+    group2_data_flat = np.asarray(group2_flat).flatten()
     
     # Check for normality
     is_normal_group1 = check_normality(group1_data_flat)
@@ -104,9 +121,10 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
     stat_results = []
     
     for feature_name, time_dict in all_features_data.items():
-        # Special handling for Spike Contrast feature
-        is_spike_contrast = 'Spike Contrast' in feature_name
-        
+        # Skip Spike Contrast Trace features that we don't need
+        if feature_name.startswith('Spike Contrast Trace'):
+            continue
+            
         time_indices_sorted = sorted(time_dict.keys(), key=lambda x: int(x))
         if custom_labels and len(custom_labels) == len(time_indices_sorted):
             x_labels = custom_labels
@@ -128,11 +146,18 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
             for g in group_names:
                 group_values = time_dict[t].get(g, [])
                 
-                # If this is the spike contrast feature, extract maximum synchrony from each array
-                if is_spike_contrast and len(group_values) > 0 and hasattr(group_values[0], 'size') and group_values[0].size > 1:
-                    group_values = [np.max(val) if hasattr(val, 'max') else val for val in group_values]
+                # Process the values to ensure we have scalar values
+                processed_values = []
+                for val in group_values:
+                    # For Spike Contrast (synchrony_with_trace), extract the synchrony value
+                    if isinstance(val, dict) and 'synchrony' in val:
+                        processed_values.append(val['synchrony'])
+                    elif isinstance(val, (list, np.ndarray)) and hasattr(val, 'size') and val.size > 1:
+                        processed_values.append(np.max(val))
+                    else:
+                        processed_values.append(val)
                 
-                group_list_for_this_time.append(group_values)
+                group_list_for_this_time.append(processed_values)
             data_for_boxplot.append(group_list_for_this_time)
         
         # Create normalized data relative to reference measurements
@@ -182,7 +207,9 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
             # Find maximum value for positioning the significance bar
             all_values = sham_data + treatment_data
             if all_values:
-                max_val = max(all_values)
+                # Use list comprehension to ensure we only compare scalar values
+                scalar_values = [v for v in all_values if np.isscalar(v)]
+                max_val = max(scalar_values) if scalar_values else 0
             else:
                 max_val = 0
                 
@@ -382,12 +409,16 @@ def main():
                     if 'features' in data:
                         features = data['features'].item()
                         for feat_key, feat_val in features.items():
-                            # Handle special case for Spike Contrast
-                            if 'Spike Contrast' in feat_key and hasattr(feat_val, 'size') and feat_val.size > 1:
-                                # For Spike Contrast, use the max value
-                                max_sync = np.max(feat_val)
-                                all_features_data[feat_key][str(idx)][group].append(max_sync)
+                            # Skip Spike Contrast Trace features
+                            if feat_key.startswith('Spike Contrast Trace'):
+                                continue
+                                
+                            # Add feature value to our data structure
+                            if feat_key == 'Synchrony (Spike Contrast)':
+                                # Store synchrony_with_trace directly
+                                all_features_data[feat_key][str(idx)][group].append(feat_val)
                             else:
+                                # Store other features normally
                                 all_features_data[feat_key][str(idx)][group].append(feat_val)
     
     # Output directories

@@ -1,0 +1,1 @@
+Referenz;0.01;0.01 after 30min;0.1;0.1 after 30min;1.0;1.0 after 30min;7DAT;14DAT;21DAT;28DAT;49DAT;63DAT;77DAT

@@ -1,5 +1,7 @@
 # MEAanalyzer
 
+![Connectivity Graph Example](sample_images/ConnGraph_ID2024-01_20240702_1.0M_L_after30min.png)
+
 A containerized pipeline for analyzing Multi-Electrode Array (MEA) recordings with automated burst detection, feature calculation, visualization, and statistical analysis.
 
 ## Overview
@@ -117,11 +119,14 @@ python src/connectivitygraphs.py            # Generate connectivity graphs
 - **append_bursts_computeIntense.py**: Entry point that processes raw .bxr files and adds burst detection
   - Alternative: append_bursts.py (faster but less precise burst detection)
 - **rasterplots.py**: Creates visualizations of spike activity (depends on burst detection)
+  ![Raster Plot Example](sample_images/ID2024-01_1_20240702_control_separate_raster_plot.png)
 - **featurecalc_tspe.py**: Calculates neural activity features (depends on burst detection)
   - Alternative: featurecalc.py (without TSPE connectivity metrics) 
 - **boxplots.py**: Generates boxplots for comparing groups (depends on feature calculation)
+  ![Box Plot Example](sample_images/Connectivity_Number_of_Connections_rel_stat_boxplot.png)
 - **statistic.py**: Performs statistical analysis between groups (depends on feature calculation)
 - **connectivitygraphs.py**: Generates network visualization (depends on feature calculation)
+  ![Connectivity Graph Example](sample_images/ConnGraph_ID2024-01_20240917_77DAT_20241025_09.png)
 
 ## Output
 
@@ -133,6 +138,8 @@ The analysis generates multiple outputs in your data directory:
 - Statistical comparison results
 - Box plots of features across time points
 - Connectivity network visualizations
+
+![Example Output Structure](sample_images/Results.png)
 
 ## Contact
 

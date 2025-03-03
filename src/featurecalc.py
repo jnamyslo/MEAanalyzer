@@ -407,7 +407,7 @@ def main():
             chip_path = os.path.join(group_path, chip_dir)
 
             # .bxr-Dateien in aufsteigender Reihenfolge
-            bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('_NBT.bxr')])
+            bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('_NB.bxr')])
 
             # Jede Datei repräsentiert einen Zeit-Index
             for idx, bxr_file in enumerate(bxr_files, start=1):

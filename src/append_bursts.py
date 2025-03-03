@@ -224,7 +224,7 @@ def process_bxr_file(input_file):
 
         # Ausgabedateiname festlegen
         base, ext = os.path.splitext(input_file)
-        output_file = f"{base}_BT_NBT{ext}"
+        output_file = f"{base}_NB{ext}"
         
         # Ergebnisse speichern
         save_burst_data(

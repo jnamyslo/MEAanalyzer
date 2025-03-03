@@ -208,7 +208,7 @@ def process_bxr_file(input_file):
         print(f"Erkannte NetworkBursts: {len(SpikeNetworkBurstTimes)}")
 
         base, ext = os.path.splitext(input_file)
-        output_file = f"{base}_Chiapp{ext}"
+        output_file = f"{base}_NB{ext}"
         
         save_burst_data(
             output_file,

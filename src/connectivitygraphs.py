@@ -118,7 +118,7 @@ def process_all_bxr_files_in_directory(root_dir, connectivity_threshold,
             print(f'Verarbeite Ordner: {folder_name}')
             individual_plots = []
             for file in files:
-                if file.endswith('.bxr'):
+                if file.endswith('_NB.bxr'):
                     filepath = os.path.join(subdir, file)
                     print(f'  Verarbeite Datei: {file}')
                     plot_path = plot_connectivity_graph(

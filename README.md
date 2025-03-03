@@ -36,6 +36,16 @@ Choose the option that best fits your workflow and data processing needs.
 git clone https://github.com/yourusername/MEAanalyzer.git
 cd MEAanalyzer
 ```
+Make sure to edit your UID in the Dockerfile therefor:
+```bash
+echo $UID
+```
+The number which you get e.g. 1009 need to be placed in the Dockerfile under:
+
+```bash
+RUN adduser -u <YOURUIDHERE> --disabled-password --gecos "" appuser && chown -R appuser /app 
+```
+
 
 ### Build the Docker Container
 

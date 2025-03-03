@@ -96,7 +96,7 @@ def add_significance_marker(ax, x1, x2, y, p_value, height=0.05):
            ha='center', va='bottom', color='black')
 
 def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=None):
-    """Create boxplots with statistical significance markers"""
+    """Create boxplots with statistical significance markers, normalized to reference"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
@@ -120,10 +120,6 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
         if len(group_names) != 2:
             print(f"Warning: Expected 2 groups, found {len(group_names)} for {feature_name}")
             continue
-            
-        # Assuming first group is SHAM and second is treatment
-        sham_group = group_names[0]
-        treatment_group = group_names[1]
         
         # Prepare data for boxplots - handle special case for Spike Contrast
         data_for_boxplot = []
@@ -139,14 +135,38 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 group_list_for_this_time.append(group_values)
             data_for_boxplot.append(group_list_for_this_time)
         
-        # Calculate statistics for each time point after reference
+        # Create normalized data relative to reference measurements
+        data_for_boxplot_relative = []
+        ref_means_per_group = []
+        first_time_idx_data = data_for_boxplot[0]  # Reference measurement
+        
+        # Get reference values for each group
+        for group_idx, group_values in enumerate(first_time_idx_data):
+            if len(group_values) > 0:
+                ref_means_per_group.append(np.mean(group_values))
+            else:
+                ref_means_per_group.append(1.0)  # Avoid division by zero
+        
+        # Normalize all values relative to reference
+        for time_idx, group_values_list in enumerate(data_for_boxplot):
+            group_list_for_this_time_rel = []
+            for group_idx, group_values in enumerate(group_values_list):
+                if ref_means_per_group[group_idx] != 0:
+                    # Values are normalized and then -1 so reference becomes 0
+                    norm_values = [(val / ref_means_per_group[group_idx]) - 1 for val in group_values]
+                else:
+                    norm_values = [0 for _ in group_values]
+                group_list_for_this_time_rel.append(norm_values)
+            data_for_boxplot_relative.append(group_list_for_this_time_rel)
+        
+        # Calculate statistics for each time point after reference using normalized data
         p_values = []
         test_types = []
         max_values = []
         
         for time_idx in range(1, len(time_indices_sorted)):  # Skip first time point (reference)
-            sham_data = data_for_boxplot[time_idx][0]
-            treatment_data = data_for_boxplot[time_idx][1]
+            sham_data = data_for_boxplot_relative[time_idx][0]
+            treatment_data = data_for_boxplot_relative[time_idx][1]
             
             p_value, test_type = perform_statistical_test(sham_data, treatment_data)
             
@@ -162,10 +182,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
             # Find maximum value for positioning the significance bar
             all_values = sham_data + treatment_data
             if all_values:
-                if hasattr(all_values[0], 'size') and all_values[0].size > 1:
-                    max_val = max([np.max(val) if hasattr(val, 'max') else val for val in all_values])
-                else:
-                    max_val = max(all_values)
+                max_val = max(all_values)
             else:
                 max_val = 0
                 
@@ -180,7 +197,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 'Significant': 'Yes' if p_value <= 0.05 else 'No'
             })
         
-        # Create boxplot with significance markers
+        # Create symlog plot with significance markers (similar to boxplots.py relative plot)
         fig, ax = plt.subplots(figsize=(12, 7))
         sns.set_style("whitegrid")
         
@@ -189,8 +206,8 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
         width = 0.6 / n_groups
         colors = plt.cm.Set1.colors
         
-        # Create boxplots
-        for time_idx, group_values_list in enumerate(data_for_boxplot):
+        # Create boxplots using relative data
+        for time_idx, group_values_list in enumerate(data_for_boxplot_relative):
             for group_idx, group_values in enumerate(group_values_list):
                 position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
                 bp = ax.boxplot(group_values,
@@ -202,7 +219,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 
                 for box in bp['boxes']:
                     box.set(facecolor=colors[group_idx % len(colors)])
-                    
+        
         # Add significance markers for each time point after reference
         for time_idx in range(1, len(time_indices_sorted)):
             pos1 = time_idx - width/2
@@ -216,8 +233,15 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 )
         
         # Set plot labels and title
-        ax.set_title(f"{feature_name} with Statistical Significance", fontsize=14)
-        ax.set_ylabel(feature_name, fontsize=12)
+        ax.set_title(f"Relative Change in {feature_name} with Statistical Significance", fontsize=14)
+        ax.set_ylabel(f"Relative Change (normalized to reference)", fontsize=12)
+        
+        # Use symlog scale like in boxplots.py
+        ax.set_yscale('symlog', linthresh=0.5)
+        
+        # Add reference line at y=0
+        ax.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+        
         ax.set_xticks(range(n_times))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Time Point", fontsize=12)
@@ -241,52 +265,8 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
         
         plt.tight_layout()
         filename_safe = feature_name.replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_')
-        plt.savefig(os.path.join(output_dir, f'{filename_safe}_stat_boxplot.png'), dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(output_dir, f'{filename_safe}_rel_stat_boxplot.png'), dpi=300, bbox_inches='tight')
         plt.close()
-        
-        # Also create a version with log scale for features that benefit from it
-        if all(val > 0 for sublist in data_for_boxplot for group_vals in sublist for val in group_vals if val):
-            fig, ax = plt.subplots(figsize=(12, 7))
-            
-            for time_idx, group_values_list in enumerate(data_for_boxplot):
-                for group_idx, group_values in enumerate(group_values_list):
-                    position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
-                    bp = ax.boxplot(group_values,
-                                   positions=[position],
-                                   widths=width,
-                                   patch_artist=True,
-                                   manage_ticks=False,
-                                   showfliers=False)
-                    
-                    for box in bp['boxes']:
-                        box.set(facecolor=colors[group_idx % len(colors)])
-            
-            ax.set_yscale('log')
-            
-            # Add significance markers
-            for time_idx in range(1, len(time_indices_sorted)):
-                pos1 = time_idx - width/2
-                pos2 = time_idx + width/2
-                p_value = p_values[time_idx-1]
-                
-                if not np.isnan(max_values[time_idx-1]) and max_values[time_idx-1] > 0:
-                    add_significance_marker(
-                        ax, pos1, pos2, max_values[time_idx-1] * 1.2,
-                        p_value, height=0.07
-                    )
-            
-            ax.set_title(f"{feature_name} with Statistical Significance (Log Scale)", fontsize=14)
-            ax.set_ylabel(feature_name, fontsize=12)
-            ax.set_xticks(range(n_times))
-            ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
-            ax.set_xlabel("Time Point", fontsize=12)
-            ax.legend(handles=all_legends, loc='upper left', ncol=2, 
-                     bbox_to_anchor=(1, 1), fontsize=10)
-            
-            plt.tight_layout()
-            plt.savefig(os.path.join(output_dir, f'{filename_safe}_stat_boxplot_log.png'), 
-                       dpi=300, bbox_inches='tight')
-            plt.close()
     
     # Save statistical test results to CSV
     if stat_results:

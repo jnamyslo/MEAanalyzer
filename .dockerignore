@@ -1,0 +1,18 @@
+# Documentation
+docs/
+sample_images/
+README.md
+LICENSE
+
+# Version control
+.git/
+.gitignore
+
+# Development files
+folder_structure.sh
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/

@@ -25,7 +25,7 @@
 
 # Für Input bitte Pfad zu Daten angeben: C:\Projektverzeichnis\Daten
 # Zudem werden .npz-Dateien mit den berechneten Features erstellt und gespeichert. Diese können dann für weitere Analysen verwendet werden. (bspw. Connectivity-Graph)
-
+# Funktion für bereits Spike-Detection-Dateien, die Features berechnet. 3Brain
 import os
 import re
 import h5py
@@ -408,7 +408,7 @@ def main():
             chip_path = os.path.join(group_path, chip_dir)
 
             # .bxr-Dateien in aufsteigender Reihenfolge
-            bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('_NB.bxr')])
+            bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('.bxr')])
 
             # Jede Datei repräsentiert einen Zeit-Index
             for idx, bxr_file in enumerate(bxr_files, start=1):

@@ -1,5 +1,3 @@
-#Takes long to compute. Chiappalone Ansatz!
-
 import os
 import h5py
 import numpy as np
@@ -54,21 +52,28 @@ def detect_bursts(spike_times, isi_threshold_factor=0.25, min_spikes_in_burst=3)
     ]
     return burst_times
 
-def detect_network_bursts(bursts_per_channel, min_active_channels=3, min_duration=0.1):
+def detect_network_bursts(bursts_per_channel, active_channels_factor=0.1, min_duration=0.1):
     """
     Erkennung von Netzwerk-Bursts nach dem Ansatz von Chiappalone:
-    Ein Network-Burst beginnt, sobald mindestens 'min_active_channels' 
-    Kanäle gleichzeitig in einem Burst sind. 
+    Ein Network-Burst beginnt, sobald mindestens ein bestimmter Anteil (factor)
+    der Kanäle gleichzeitig in einem Burst sind. 
     
     Parameters:
     - bursts_per_channel: Dictionary {Kanal: [(BurstStart, BurstEnd), ...]}
-    - min_active_channels: Minimale Anzahl an Kanälen, die gleichzeitig einen Burst haben müssen.
+    - active_channels_factor: Faktor (0.0-1.0) der Kanäle, die gleichzeitig einen Burst haben müssen.
     - min_duration: Minimale Dauer eines Network-Bursts in Sekunden.
     
     Returns:
     - network_bursts: Liste von Tupeln (NetworkBurst-Start, NetworkBurst-Ende).
     """
     burst_events = []
+    
+    # Calculate minimum number of active channels based on the factor
+    total_channels_with_bursts = len(bursts_per_channel)
+    min_active_channels = max(1, int(total_channels_with_bursts * active_channels_factor))
+    
+    print(f"Total channels with bursts: {total_channels_with_bursts}")
+    print(f"Min active channels for network burst: {min_active_channels} (factor: {active_channels_factor})")
     
     # Erzeuge für jeden Kanal Start-/End-Events
     # Format: (Zeitpunkt, +1 oder -1, KanalID)
@@ -189,7 +194,7 @@ def process_bxr_file(input_file):
         # Process network bursts with seconds
         network_bursts_sec = detect_network_bursts(
             bursts_per_channel,
-            min_active_channels=30,
+            active_channels_factor=0.01, 
             min_duration=0.1
         )
         
@@ -201,7 +206,7 @@ def process_bxr_file(input_file):
         print(f"Erkannte NetworkBursts: {len(SpikeNetworkBurstTimes)}")
 
         base, ext = os.path.splitext(input_file)
-        output_file = f"{base}_SNR{ext}"
+        output_file = f"{base}_NB{ext}"
         
         save_burst_data(
             output_file,

@@ -52,70 +52,86 @@ def detect_bursts(spike_times, isi_threshold_factor=0.25, min_spikes_in_burst=3)
     ]
     return burst_times
 
-def detect_network_bursts(bursts_per_channel, active_channels_factor=0.1, min_duration=0.1):
+def detect_network_bursts_from_spikes(spikes_per_channel, active_channels_factor=0.1, 
+                                     min_duration=0.1, time_window=0.05):
     """
-    Erkennung von Netzwerk-Bursts nach dem Ansatz von Chiappalone:
+    Erkennung von Netzwerk-Bursts direkt aus Spike-Daten.
     Ein Network-Burst beginnt, sobald mindestens ein bestimmter Anteil (factor)
-    der Kanäle gleichzeitig in einem Burst sind. 
+    der Kanäle innerhalb eines Zeitfensters aktiv sind.
     
     Parameters:
-    - bursts_per_channel: Dictionary {Kanal: [(BurstStart, BurstEnd), ...]}
-    - active_channels_factor: Faktor (0.0-1.0) der Kanäle, die gleichzeitig einen Burst haben müssen.
-    - min_duration: Minimale Dauer eines Network-Bursts in Sekunden.
+    - spikes_per_channel: Dictionary {Kanal: [Spike-Zeitpunkte in Sekunden]}
+    - active_channels_factor: Faktor (0.0-1.0) der Kanäle, die gleichzeitig aktiv sein müssen
+    - min_duration: Minimale Dauer eines Network-Bursts in Sekunden
+    - time_window: Zeitfenster in Sekunden, in dem Spikes als gleichzeitig betrachtet werden
     
     Returns:
-    - network_bursts: Liste von Tupeln (NetworkBurst-Start, NetworkBurst-Ende).
+    - network_bursts: Liste von Tupeln (NetworkBurst-Start, NetworkBurst-Ende)
     """
-    burst_events = []
+    # Erzeuge ein Event-Array mit (Zeit, +1/-1, Kanal)
+    # wobei +1 für "Aktivität beginnt" und -1 für "Aktivität endet" steht
+    spike_events = []
     
-    # Calculate minimum number of active channels based on the factor
-    total_channels_with_bursts = len(bursts_per_channel)
-    min_active_channels = max(1, int(total_channels_with_bursts * active_channels_factor))
+    total_channels = len(spikes_per_channel)
+    min_active_channels = max(1, int(total_channels * active_channels_factor))
     
-    print(f"Total channels with bursts: {total_channels_with_bursts}")
+    print(f"Total channels with spikes: {total_channels}")
     print(f"Min active channels for network burst: {min_active_channels} (factor: {active_channels_factor})")
     
-    # Erzeuge für jeden Kanal Start-/End-Events
-    # Format: (Zeitpunkt, +1 oder -1, KanalID)
-    for channel_idx, bursts in bursts_per_channel.items():
-        for (burst_start, burst_end) in bursts:
-            burst_events.append((burst_start, +1, channel_idx))
-            burst_events.append((burst_end, -1, channel_idx))
-
-    # Sortiere die Events zeitlich (Start-Events vor End-Events bei gleicher Zeit)
-    # Damit bei exakten Gleichständen ein Kanal zunächst als "aktiv" gezählt wird
-    burst_events.sort(key=lambda x: (x[0], -x[1]))
+    # Für jeden Kanal und jeden Spike erzeugen wir ein "Aktivitäts"-Fenster
+    for channel_idx, spike_times in spikes_per_channel.items():
+        for spike_time in spike_times:
+            # Jeder Spike aktiviert den Kanal für die Dauer des Zeitfensters
+            spike_events.append((spike_time, +1, channel_idx))
+            spike_events.append((spike_time + time_window, -1, channel_idx))
+    
+    # Sortiere Events zeitlich 
+    # (Aktivierungen vor Deaktivierungen bei gleicher Zeit)
+    spike_events.sort(key=lambda x: (x[0], -x[1]))
     
     active_channels = set()
     network_burst_start = None
     network_bursts = []
-
-    for time_event, delta, ch_idx in burst_events:
+    
+    for time_event, delta, ch_idx in spike_events:
         if delta == +1:
-            # Kanal ch_idx startet einen Burst
             active_channels.add(ch_idx)
         else:
-            # Kanal ch_idx endet einen Burst
             active_channels.discard(ch_idx)
-
-        # Prüfen, ob wir in einen neuen Network-Burst gehen
+        
+        # Prüfen, ob ein Network-Burst beginnt
         if len(active_channels) >= min_active_channels and network_burst_start is None:
             network_burst_start = time_event
         
-        # Prüfen, ob ein laufender Network-Burst beendet wird
+        # Prüfen, ob ein laufender Network-Burst endet
         elif len(active_channels) < min_active_channels and network_burst_start is not None:
             network_burst_end = time_event
+            
             # Mindestdauer prüfen
             if (network_burst_end - network_burst_start) >= min_duration:
                 network_bursts.append((network_burst_start, network_burst_end))
+            
             network_burst_start = None
-
+    
     # Falls am Ende noch ein Network-Burst "offen" ist
     if network_burst_start is not None:
-        network_burst_end = burst_events[-1][0]
+        network_burst_end = spike_events[-1][0]
         if (network_burst_end - network_burst_start) >= min_duration:
             network_bursts.append((network_burst_start, network_burst_end))
-
+    
+    # Zusammenführen von überlappenden oder nahe beieinander liegenden Network-Bursts
+    if network_bursts:
+        merged_bursts = [network_bursts[0]]
+        for current_start, current_end in network_bursts[1:]:
+            prev_start, prev_end = merged_bursts[-1]
+            
+            # Wenn der aktuelle Burst innerhalb eines kurzen Zeitfensters nach dem vorherigen beginnt,
+            # werden sie zusammengeführt
+            if current_start - prev_end < time_window:
+                merged_bursts[-1] = (prev_start, current_end)
+            else:
+                merged_bursts.append((current_start, current_end))
+    network_bursts = merged_bursts
     return network_bursts
 
 def load_spike_data(input_file):
@@ -180,7 +196,7 @@ def process_bxr_file(input_file):
         for ch_idx, times in spikes_per_channel.items():
             bursts_per_channel[ch_idx] = detect_bursts(
                 times,
-                isi_threshold_factor=0.7,
+                isi_threshold_factor=0.6,
                 min_spikes_in_burst=3)
         
         SpikeBurstTimes = []
@@ -192,10 +208,11 @@ def process_bxr_file(input_file):
                 SpikeBurstChIdxs.append(ch_idx)
         
         # Process network bursts with seconds
-        network_bursts_sec = detect_network_bursts(
-            bursts_per_channel,
-            active_channels_factor=0.01, 
-            min_duration=0.1
+        network_bursts_sec = detect_network_bursts_from_spikes(
+            spikes_per_channel,
+            active_channels_factor=0.01,
+            min_duration=0.1,
+            time_window=0.001  # 50ms window to consider spikes as co-active
         )
         
         # Convert network bursts back to frames for storage

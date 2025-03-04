@@ -54,3 +54,6 @@ echo "File organization complete"
 # Remove specific files
 #find . -type f -name "*_NBT*" -exec rm -f {} +
 
+# Remove specific folders
+#find . -type d -name "*Rasterplots*" -exec rm -rf {} +
+

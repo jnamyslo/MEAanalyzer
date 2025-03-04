@@ -264,7 +264,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
         ax.set_ylabel(f"Relative Change (normalized to reference)", fontsize=12)
         
         # Use symlog scale like in boxplots.py
-        #ax.set_yscale('symlog', linthresh=0.5)
+        ax.set_yscale('symlog', linthresh=0.5)
         
         # Add reference line at y=0
         ax.axhline(y=0, color='gray', linestyle='--', alpha=0.7)

@@ -29,6 +29,7 @@ Choose the option that best fits your workflow and data processing needs.
 
 - [Docker](https://docs.docker.com/get-docker/) installed on your system
 - MEA recording data in .bxr format
+- Make sure to have your Chip ID in the file names! E.g. *ID2024-0X* or *ID2024-01_yourFilenamewhatever.bxr*
 
 ### Clone the Repository
 
@@ -87,6 +88,26 @@ data/
 - ID folders represent individual samples/chips
 - Files are processed in alphabetical order and treated as sequential time points
 - You can optionally include a `labels.txt` file in the data directory with semicolon-separated labels for timepoints. Make sure to have an equal amount of files in each Chip-Folder. Make also sure to provide the same amount of labels in your `labels.txt`, otherwise it will not be used.
+
+### Create Folder Structure (Example)
+
+**Option 1**
+```bash
+mkdir SHAM LSD
+mkdir -p SHAM/ID2024-0{4,8}
+mkdir -p LSD/ID2024-0{1,2,3,5,6,7}
+
+```
+**Option 2**
+```bash
+cd /your/root/folder/with/all/.bxr files
+```
+Copy and !adapt! the content of folder_structure.sh and paste it into your terminal. The script will automatically collect all .bxr files in your root directory, create the nessecary folder structure and sort the files accordingly. 
+
+Check the folder structure
+```bash
+tree
+```
 
 ### Custom Labels
 

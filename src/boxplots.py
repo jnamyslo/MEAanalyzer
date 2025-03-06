@@ -130,17 +130,34 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
                 for box in bp['boxes']:
                     box.set(facecolor=colors[group_idx % len(colors)])
 
-        ax.set_title("Relative Veränderung der " + feature_name + " zur Referenzmessung", fontsize=14)
-        ax.set_ylabel("Relative Änderung", fontsize=12)
-        ax.set_yscale('symlog', linthresh=0.5)
+        ax.set_title(f"Relative Änderung in {feature_name} zu Referenzmessung", fontsize=14)
+        ax.set_ylabel(f"Relative Änderung (auf Referenz normiert)", fontsize=12)
+        
+        # Define linthresh for symlog scale
+        linthresh = 0.5
+        
+        # Use symlog scale like in boxplots.py
+        ax.set_yscale('symlog', linthresh=linthresh)
+        
+        # Add reference line at y=0
+        ax.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+        
+        # Add transition indicators for symlog scale
+        ax.axhline(y=linthresh, color='red', linestyle=':', alpha=0.7)
+        ax.axhline(y=-linthresh, color='red', linestyle=':', alpha=0.7)
+        ax.text(n_times-0.5, linthresh*1.1, f"Übergang Linear → Log  bei ±{linthresh}", 
+                ha='right', va='bottom', color='red', fontsize=9, alpha=0.7)
+        
         ax.set_xticks(range(len(time_indices_sorted)))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
         ax.legend(handles=legend_patches, title="Gruppen", loc='lower left',
                   bbox_to_anchor=(0.5, -0.15), ncol=len(group_names),
                   fontsize=10, title_fontsize=12)
+
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot_rel.png'), dpi=300)
+        filename_safe = feature_name.replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_')
+        plt.savefig(os.path.join(output_dir, f'{filename_safe}_rel.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
 def main():

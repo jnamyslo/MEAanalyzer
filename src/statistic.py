@@ -224,7 +224,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 'Significant': 'Yes' if p_value <= 0.05 else 'No'
             })
         
-        # Create symlog plot with significance markers (similar to boxplots.py relative plot)
+# Create symlog plot with significance markers (similar to boxplots.py relative plot)
         fig, ax = plt.subplots(figsize=(12, 7))
         sns.set_style("whitegrid")
         
@@ -260,14 +260,23 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 )
         
         # Set plot labels and title
-        ax.set_title(f"Relative Change in {feature_name} with Statistical Significance", fontsize=14)
-        ax.set_ylabel(f"Relative Change (normalized to reference)", fontsize=12)
+        ax.set_title(f"Relative Änderung in {feature_name} mit Statistical Significance", fontsize=14)
+        ax.set_ylabel(f"Relative Änderung (auf Referenz normiert)", fontsize=12)
+        
+        # Define linthresh for symlog scale
+        linthresh = 0.5
         
         # Use symlog scale like in boxplots.py
-        ax.set_yscale('symlog', linthresh=15.0)
+        ax.set_yscale('symlog', linthresh=linthresh)
         
         # Add reference line at y=0
         ax.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+        
+        # Add transition indicators for symlog scale
+        ax.axhline(y=linthresh, color='red', linestyle=':', alpha=0.7)
+        ax.axhline(y=-linthresh, color='red', linestyle=':', alpha=0.7)
+        ax.text(n_times-0.5, linthresh*1.1, f"Übergang Linear → Log  bei ±{linthresh}", 
+                ha='right', va='bottom', color='red', fontsize=9, alpha=0.7)
         
         ax.set_xticks(range(n_times))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)

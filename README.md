@@ -42,7 +42,7 @@ Which means for example: ID2024-01_20250306_Reference.bxr
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/MEAanalyzer.git
+git clone https://github.com/jnamyslo/MEAanalyzer.git
 cd MEAanalyzer
 ```
 

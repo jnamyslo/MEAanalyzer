@@ -14,10 +14,8 @@ WORKDIR /app
 COPY . /app
 
 RUN mkdir -p data
-# RUN touch myfile.brw
 
-# Copy the start.sh script and make it executable
-COPY start.sh /app/start.sh
+# Make start.sh executable
 RUN chmod +x /app/start.sh
 
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder

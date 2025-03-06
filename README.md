@@ -25,6 +25,14 @@ Choose the option that best fits your workflow and data processing needs.
 
 ## Getting Started
 
+**IMPORTANT NOTE** 
+
+Make sure to name your recording files properly. Your .bxr files need to have the following structure: 
+
+ID<number><4 digit number>>-<<chip-ID>Chip-ID>_whateveryouwant.bxr
+
+Which means for example: ID2024-01_20250306_Reference.bxr
+
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) installed on your system
@@ -37,16 +45,33 @@ Choose the option that best fits your workflow and data processing needs.
 git clone https://github.com/yourusername/MEAanalyzer.git
 cd MEAanalyzer
 ```
-Make sure to edit your UID in the Dockerfile therefor:
+
+### Important adaptations!
+1. Make sure to edit your UID in the Dockerfile therefor:
 ```bash
 echo $UID
 ```
 The number which you get e.g. 1009 need to be placed in the Dockerfile under:
 
+
 ```bash
-RUN adduser -u <YOURUIDHERE> --disabled-password --gecos "" appuser && chown -R appuser /app 
+RUN adduser -u <YOURUIDHERE> --disabled-password --gecos "" appuser && chown -R appuser /app`
 ```
 
+2. Make sure to adapt the folder_structure.sh script according to your experiment. Only change your experimental groups and chips:
+
+```bash
+# <EDIT START HERE>
+
+# Define your experimental groups and their associated IDs
+# Modify these arrays according to your actual grouping
+
+group_ids["SHAM"]="02 04 06 08"
+group_ids["BDNF"]="01 03 05 07"
+# group_ids["GROUP"]="XX XX XX"
+
+# < EDIT END HERE >
+```
 
 ### Build the Docker Container
 
@@ -62,7 +87,7 @@ docker rmi -f meaanalyzer:latest && docker build -t meaanalyzer:latest .
 
 ### Input Data Structure
 
-The pipeline requires a specific folder structure for proper analysis:
+The pipeline requires a specific folder structure for proper analysis. **This folderstructure is created automatically!** Nevertheless here for reference:
 
 ```
 data/
@@ -89,42 +114,7 @@ data/
 - Files are processed in alphabetical order and treated as sequential time points
 - You can optionally include a `labels.txt` file in the data directory with semicolon-separated labels for timepoints. Make sure to have an equal amount of files in each Chip-Folder. Make also sure to provide the same amount of labels in your `labels.txt`, otherwise it will not be used.
 
-### Create Folder Structure (Example)
-
-**Option 1 (Recommended)**
-
-Adapt the HEAD of `folder_structure.sh` file to your needs. (Define Groups and Chips in "EDIT HERE") 
-
-```bash
-nano folder_structure.sh
-```
-save the edited file with `CTL + X` followed by `Y`
-
-Go to your .bxr files
-```bash
-cd /your/root/folder/with/all/.bxr files (in our example above. it would just be data/)
-```
-Copy the edited `folder_structure.sh` to your data path
-```bash
-cp ~/MEAanalyzer/folder_structure.sh .
-```
-Run the script to automatically create the folder structure and move your files accordingly (make sure your script is adapted to your needs! E.g. Groups and Chips)
-```bash
-./folder_structure.sh 
-```
-
-Check the folder structure
-```bash
-tree
-```
-
-**Option 2 (Manual way)**
-```bash
-mkdir SHAM LSD
-mkdir -p SHAM/ID2024-0{4,8}
-mkdir -p LSD/ID2024-0{1,2,3,5,6,7}
-
-```
+The Folder structure is created automatically. You just need to make sure you mount the data path with all your `.bxr`files in the root folder. (E.g. data)
 
 ### Custom Labels
 

@@ -114,7 +114,7 @@ def process_all_bxr_files_in_directory(root_dir, connectivity_threshold,
 
     for subdir, _, files in os.walk(root_dir):
         folder_name = os.path.basename(subdir)
-        if folder_name.startswith('ID2024-'):
+        if folder_name.startswith('ID-'):
             print(f'Verarbeite Ordner: {folder_name}')
             individual_plots = []
             for file in files:

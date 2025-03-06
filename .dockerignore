@@ -9,7 +9,6 @@ LICENSE
 .gitignore
 
 # Development files
-folder_structure.sh
 __pycache__/
 *.py[cod]
 *$py.class

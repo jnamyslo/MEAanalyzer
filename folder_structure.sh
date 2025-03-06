@@ -1,12 +1,15 @@
 #!/bin/bash
 
+cd /app/data
+declare -A group_ids
 # <EDIT START HERE>
 
 # Define your experimental groups and their associated IDs
 # Modify these arrays according to your actual grouping
-declare -A group_ids
 group_ids["SHAM"]="02 04 06 08"
 group_ids["BDNF"]="01 03 05 07"
+
+chipprefix="ID2024"
 # ADD GROUPS HERE group_ids["GROUP"]="XX XX XX"
 
 # < EDIT END HERE >
@@ -18,7 +21,7 @@ for group in "${!group_ids[@]}"; do
   
   # Create ID folders for each group
   for id in ${group_ids[$group]}; do
-    mkdir -p "$group/ID2024-$id"
+    mkdir -p "$group/$chipprefix-$id"
   done
 done
 
@@ -27,7 +30,7 @@ find . -maxdepth 1 -name "*.bxr" | while read file; do
   filename=$(basename "$file")
   
   # Extract ID from filename (assuming format ID2024-XX in the filename)
-  if [[ $filename =~ ID2024-([0-9][0-9]) ]]; then
+  if [[ $filename =~ $chipprefix-([0-9][0-9]) ]]; then
     id="${BASH_REMATCH[1]}"
     
     # Determine which group this ID belongs to
@@ -41,8 +44,8 @@ find . -maxdepth 1 -name "*.bxr" | while read file; do
     
     # Move file if we found a matching group
     if [ ! -z "$target_group" ]; then
-      echo "Moving $filename to $target_group/ID2024-$id/"
-      mv "$file" "$target_group/ID2024-$id/"
+      echo "Moving $filename to $target_group/$chipprefix-$id/"
+      mv "$file" "$target_group/$chipprefix-$id/"
     else
       echo "Warning: No group found for ID $id in file $filename"
     fi

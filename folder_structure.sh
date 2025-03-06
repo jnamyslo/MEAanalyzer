@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# <EDIT START HERE>
+
 # Define your experimental groups and their associated IDs
 # Modify these arrays according to your actual grouping
 declare -A group_ids
-group_ids["SHAM"]="04 08"
-group_ids["LSD"]="01 02 03 05 06 07"
+group_ids["SHAM"]="02 04 06 08"
+group_ids["BDNF"]="01 03 05 07"
+# ADD GROUPS HERE group_ids["GROUP"]="XX XX XX"
+
+# < EDIT END HERE >
+
 
 # Create group folders
 for group in "${!group_ids[@]}"; do
@@ -47,6 +53,9 @@ done
 
 echo "File organization complete"
 
+
+
+# MISCELLANEOUS (Handy commands)
 
 # Revert it with 
 #find . -type f -name "*.bxr" -exec mv {} . \;

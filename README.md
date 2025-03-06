@@ -91,22 +91,39 @@ data/
 
 ### Create Folder Structure (Example)
 
-**Option 1**
+**Option 1 (Recommended)**
+
+Adapt the HEAD of `folder_structure.sh` file to your needs. (Define Groups and Chips in "EDIT HERE") 
+
+```bash
+nano folder_structure.sh
+```
+save the edited file with `CTL + X` followed by `Y`
+
+Go to your .bxr files
+```bash
+cd /your/root/folder/with/all/.bxr files (in our example above. it would just be data/)
+```
+Copy the edited `folder_structure.sh` to your data path
+```bash
+cp ~/MEAanalyzer/folder_structure.sh .
+```
+Run the script to automatically create the folder structure and move your files accordingly (make sure your script is adapted to your needs! E.g. Groups and Chips)
+```bash
+./folder_structure.sh 
+```
+
+Check the folder structure
+```bash
+tree
+```
+
+**Option 2 (Manual way)**
 ```bash
 mkdir SHAM LSD
 mkdir -p SHAM/ID2024-0{4,8}
 mkdir -p LSD/ID2024-0{1,2,3,5,6,7}
 
-```
-**Option 2**
-```bash
-cd /your/root/folder/with/all/.bxr files
-```
-Copy and !adapt! the content of folder_structure.sh and paste it into your terminal. The script will automatically collect all .bxr files in your root directory, create the nessecary folder structure and sort the files accordingly. 
-
-Check the folder structure
-```bash
-tree
 ```
 
 ### Custom Labels

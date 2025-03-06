@@ -17,6 +17,7 @@ RUN mkdir -p data
 
 # Make start.sh executable
 RUN chmod +x /app/start.sh
+RUN chmod +x /app/folder_structure.sh
 
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder
 # For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers

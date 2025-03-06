@@ -2,6 +2,22 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
+import seaborn as sns
+from matplotlib.patches import Patch
+
+def process_feature_value(value):
+    """
+    Process feature values to ensure we have scalar values:
+    - For Spike Contrast (synchrony_with_trace), extract the synchrony value
+    - For array-like data, use the max value
+    - Otherwise, return the value as is
+    """
+    if isinstance(value, dict) and 'synchrony' in value:
+        return value['synchrony']
+    elif isinstance(value, (list, np.ndarray)) and hasattr(value, 'size') and value.size > 1:
+        return np.max(value)
+    else:
+        return value
 
 def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=None):
     # Sicherstellen, dass das Ausgabeverzeichnis existiert
@@ -9,12 +25,16 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
         os.makedirs(output_dir)
 
     for feature_name, time_dict in all_features_data.items():
+        # Skip Spike Contrast Trace features that we don't need
+        if feature_name.startswith('Spike Contrast Trace'):
+            continue
+            
         time_indices_sorted = sorted(time_dict.keys(), key=lambda x: int(x))
         if custom_labels and len(custom_labels) == len(time_indices_sorted):
             x_labels = custom_labels
         else:
             x_labels = time_indices_sorted
-            print("Warnung: Benutzerdefinierte Labels nicht gefunden oder Anzahl stimmt nicht überein.")
+            print("Warnung: Benutzerdefinierte Labels nicht gefunden oder Anzahl stimmt nicht überein. Fallback zu ordinalzer Reihenfolge.")
         group_names = set()
         for t in time_indices_sorted:
             group_names.update(time_dict[t].keys())
@@ -26,11 +46,17 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
             group_list_for_this_time = []
             for g in group_names:
                 group_values = time_dict[t].get(g, [])
-                group_list_for_this_time.append(group_values)
+                
+                # Werte verarbeiten, um skalare Werte zu gewährleisten
+                processed_values = [process_feature_value(val) for val in group_values]
+                
+                group_list_for_this_time.append(processed_values)
             data_for_boxplot.append(group_list_for_this_time)
 
         # Plot 1: Standard
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(12, 7))
+        sns.set_style("whitegrid")
+        
         n_times = len(time_indices_sorted)
         n_groups = len(group_names)
         width = 0.6 / n_groups
@@ -54,22 +80,23 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
 
+        # Use patches for legend like in statistic.py
         legend_patches = [
-            plt.Line2D([0], [0], color=colors[idx % len(colors)],
-                       label=group, marker='s', linestyle='', markersize=10)
+            Patch(color=colors[idx % len(colors)], label=group)
             for idx, group in enumerate(group_names)
         ]
-        ax.legend(handles=legend_patches, title="Gruppen", loc='lower left',
-                  bbox_to_anchor=(0.5, -0.15), ncol=len(group_names),
-                  fontsize=10, title_fontsize=12)
+        ax.legend(handles=legend_patches, loc='upper left', 
+                  bbox_to_anchor=(1, 1), fontsize=10)
 
         plt.tight_layout()
         filename_safe = feature_name.replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_')
-        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot.png'), dpi=300)
+        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
         # Plot 2: Log-Skala
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(12, 7))
+        sns.set_style("whitegrid")
+        
         for time_idx, group_values_list in enumerate(data_for_boxplot):
             for group_idx, group_values in enumerate(group_values_list):
                 position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
@@ -82,17 +109,18 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
                 for box in bp['boxes']:
                     box.set(facecolor=colors[group_idx % len(colors)])
 
-        ax.set_title(feature_name + "(Log-Scale)", fontsize=14)
+        ax.set_title(feature_name + " (Log-Scale)", fontsize=14)
         ax.set_ylabel(feature_name, fontsize=12)
         ax.set_yscale('log')
         ax.set_xticks(range(len(time_indices_sorted)))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
-        ax.legend(handles=legend_patches, title="Gruppen", loc='lower left',
-                  bbox_to_anchor=(0.5, -0.15), ncol=len(group_names),
-                  fontsize=10, title_fontsize=12)
+        
+        ax.legend(handles=legend_patches, loc='upper left', 
+                  bbox_to_anchor=(1, 1), fontsize=10)
+                  
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot_log.png'), dpi=300)
+        plt.savefig(os.path.join(output_dir, f'{filename_safe}_boxplot_log.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
         # Plot 3: Relative Veränderung (Kontrolle = 0)
@@ -117,7 +145,9 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
                 group_list_for_this_time_rel.append(norm_values)
             data_for_boxplot_relative.append(group_list_for_this_time_rel)
 
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(12, 7))
+        sns.set_style("whitegrid")
+        
         for time_idx, group_values_list in enumerate(data_for_boxplot_relative):
             for group_idx, group_values in enumerate(group_values_list):
                 position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
@@ -151,9 +181,9 @@ def plot_feature_values_over_time(all_features_data, output_dir, custom_labels=N
         ax.set_xticks(range(len(time_indices_sorted)))
         ax.set_xticklabels(x_labels, rotation=45, fontsize=10)
         ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
-        ax.legend(handles=legend_patches, title="Gruppen", loc='lower left',
-                  bbox_to_anchor=(0.5, -0.15), ncol=len(group_names),
-                  fontsize=10, title_fontsize=12)
+        
+        ax.legend(handles=legend_patches, loc='upper left', 
+                  bbox_to_anchor=(1, 1), fontsize=10)
 
         plt.tight_layout()
         filename_safe = feature_name.replace(' ', '_').replace('(', '').replace(')', '').replace('/', '_')
@@ -190,6 +220,11 @@ def main():
                     if 'features' in data:
                         features = data['features'].item()
                         for feat_key, feat_val in features.items():
+                            # Skip Spike Contrast Trace features
+                            if feat_key.startswith('Spike Contrast Trace'):
+                                continue
+                                
+                            # Füge Feature-Wert zu unserer Datenstruktur hinzu
                             all_features_data[feat_key][str(idx)][group].append(feat_val)
 
     inter_group_output_dir = os.path.join(parent_dir, 'Inter_Group_Boxplots')

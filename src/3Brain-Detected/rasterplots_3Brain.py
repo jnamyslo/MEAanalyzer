@@ -1,11 +1,11 @@
-# Description: Funktion für bereits Burst-Detection-Dateien, die Rasterplots erstellt. 
+# Description: Function for creating raster plots from files with burst detection. 
 
 import os
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Gesamtanzahl der Elektroden fixiert auf 4096
+# Fixed total number of electrodes at 4096
 TOTAL_CHANNELS = 4096
 
 def raster_plots_main(filepath, 
@@ -17,9 +17,9 @@ def raster_plots_main(filepath,
     rasterplot_path = os.path.join(output_dir, f'{filename_base}_raster_plot.png')
     separate_rasterplot_path = os.path.join(output_dir, f'{filename_base}_separate_raster_plot.png')
     
-    # Überprüfung, ob die Rasterplots bereits existieren
+    # Check if the raster plots already exist
     if os.path.exists(rasterplot_path) and os.path.exists(separate_rasterplot_path):
-        print(f"Überspringe {filepath}, Rasterplots existieren bereits.")
+        print(f"Skipping {filepath}, raster plots already exist.")
         return
     
     with h5py.File(filepath, 'r') as file:
@@ -78,7 +78,7 @@ def raster_plots_main(filepath,
                 dpi
             )
         else:
-            print(f"Warnung: 'SpikeTimes' nicht in {filepath} vorhanden.")
+            print(f"Warning: 'SpikeTimes' not found in {filepath}.")
 
 def create_raster_plot(spike_raster_data,
                        burst_raster_data,
@@ -98,10 +98,10 @@ def create_raster_plot(spike_raster_data,
 
     filename = os.path.basename(filepath)
     plt.title(f'Raster Plot: {filename}')
-    plt.xlabel('Zeit (s)')
-    plt.ylabel('Kanalindex')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Channel Index')
     
-    # Feste Achsenbegrenzung für 4096 Kanäle
+    # Fixed axis limits for 4096 channels
     plt.ylim(-0.5, TOTAL_CHANNELS - 0.5)
 
     plt.tight_layout()
@@ -110,7 +110,7 @@ def create_raster_plot(spike_raster_data,
     legend_elements = [
         Line2D([0], [0], color='black', lw=2, label='Spikes'),
         Line2D([0], [0], color='lightgreen', lw=2, label='Spike-Bursts'),
-        Line2D([0], [0], color='red', lw=2, label='Networkbursts')
+        Line2D([0], [0], color='red', lw=2, label='Network Bursts')
     ]
     plt.legend(handles=legend_elements, loc='center left', bbox_to_anchor=(1, 0.5))
 
@@ -123,7 +123,7 @@ def create_raster_plot(spike_raster_data,
         plt.savefig(f'{output_basename}.svg', format='svg', bbox_inches='tight')
     plt.close()
 
-# Getrennter Rasterplot
+# Separate raster plot
 def create_separate_raster_plot(spike_raster_data,
                                 burst_raster_data,
                                 network_burst_times,
@@ -137,22 +137,22 @@ def create_separate_raster_plot(spike_raster_data,
     fig, axes = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
 
     axes[0].eventplot(spike_raster_data, colors='black', linelengths=0.9)
-    axes[0].set_ylabel('Kanalindex')
+    axes[0].set_ylabel('Channel Index')
     axes[0].set_title('Spikes')
     axes[0].set_xlim(left=0)
     axes[0].set_ylim(-0.5, TOTAL_CHANNELS - 0.5)
 
     if any(burst_raster_data):
         axes[1].eventplot(burst_raster_data, colors='lightgreen', linelengths=0.7)
-    axes[1].set_ylabel('Kanalindex')
+    axes[1].set_ylabel('Channel Index')
     axes[1].set_title('Spike-Bursts')
     axes[1].set_xlim(left=0)
     axes[1].set_ylim(-0.5, TOTAL_CHANNELS - 0.5)
 
     axes[2].eventplot([], colors='red', linelengths=1.0)
-    axes[2].set_ylabel('Kanalindex')
-    axes[2].set_title('Networkbursts')
-    axes[2].set_xlabel('Zeit (s)')
+    axes[2].set_ylabel('Channel Index')
+    axes[2].set_title('Network Bursts')
+    axes[2].set_xlabel('Time (s)')
     axes[2].set_xlim(left=0)
     axes[2].set_ylim(-0.5, TOTAL_CHANNELS - 0.5)
 
@@ -173,13 +173,13 @@ def generate_raster_plots_for_all_files(root_dir):
             if filename.endswith('.bxr'):
                 filepath = os.path.join(dirpath, filename)
                 output_dir = os.path.join(dirpath, 'Rasterplots')
-                print(f"Plotte Datei: {filepath}")
+                print(f"Plotting file: {filepath}")
                 try:
                     raster_plots_main(filepath, output_dir=output_dir)
                 except Exception as e:
-                    print(f"Fehler beim Verarbeiten von {filepath}: {e}")
+                    print(f"Error processing {filepath}: {e}")
 
 if __name__ == "__main__":
     root_dir = "data"
     generate_raster_plots_for_all_files(root_dir)
-    print("Alle Rasterplots wurden erstellt.")
+    print("All raster plots have been created.")

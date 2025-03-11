@@ -1,3 +1,10 @@
+"""
+MEAanalyzer - Statistical Analysis Module
+
+This module provides statistical analysis of neural activity features.
+It performs normality tests and appropriate statistical comparisons between groups.
+"""
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,8 +16,13 @@ from matplotlib.patches import Patch
 
 def check_normality(data):
     """
-    Check if data is normally distributed using Shapiro-Wilk test
-    Returns True if data is normally distributed (p > 0.05)
+    Check if data is normally distributed using Shapiro-Wilk test.
+    
+    Args:
+        data: Array-like collection of values to test
+        
+    Returns:
+        bool: True if data is normally distributed (p > 0.05), False otherwise
     """
     if len(data) < 3:  # Need at least 3 samples for Shapiro-Wilk test
         return False
@@ -23,13 +35,15 @@ def check_normality(data):
 
 def perform_statistical_test(group1_data, group2_data):
     """
-    Determine and perform appropriate statistical test:
-    - If both groups are normally distributed with similar variance: t-test
-    - Otherwise: Mann-Whitney U test
+    Determine and perform appropriate statistical test based on data distribution.
     
-    Handles both scalar and array-like data
+    Args:
+        group1_data: Data from first group
+        group2_data: Data from second group
+        
+    Returns:
+        tuple: (p_value, test_name) - Result of the statistical test and method used
     """
-    # Ensure we have scalar values
     group1_flat = []
     group2_flat = []
     
@@ -57,7 +71,6 @@ def perform_statistical_test(group1_data, group2_data):
             # For scalar values
             group2_flat.append(item)
     
-    # Now continue with original function logic
     if len(group1_flat) == 0 or len(group2_flat) == 0:
         return 1.0, "No data"
     
@@ -71,7 +84,7 @@ def perform_statistical_test(group1_data, group2_data):
     
     # Check for equal variance if normally distributed
     if is_normal_group1 and is_normal_group2:
-        # Levene test for equal variances
+        # Levene's test
         _, p_var = stats.levene(group1_data_flat, group2_data_flat)
         equal_var = p_var > 0.05
         
@@ -83,14 +96,23 @@ def perform_statistical_test(group1_data, group2_data):
         stat, p_value = stats.mannwhitneyu(group1_data_flat, group2_data_flat, alternative='two-sided')
         test_name = "Mann-Whitney U"
     
-    # Ensure we return a scalar p-value
     if hasattr(p_value, 'item'):
         p_value = p_value.item()
     
     return p_value, test_name
 
 def add_significance_marker(ax, x1, x2, y, p_value, height=0.05):
-    """Add significance bars and stars to the plot"""
+    """
+    Add significance bars and stars to the plot.
+    
+    Args:
+        ax: Matplotlib axis object
+        x1: x-position of first bar end
+        x2: x-position of second bar end
+        y: y-position for the bar
+        p_value: p-value to determine significance level
+        height: Height of the significance bar relative to plot
+    """
     # Calculate significance marker
     if p_value <= 0.001:
         sig_symbol = '***'
@@ -101,27 +123,29 @@ def add_significance_marker(ax, x1, x2, y, p_value, height=0.05):
     else:
         sig_symbol = 'ns'
         
-    # Draw the line
     bar_height = height * (ax.get_ylim()[1] - ax.get_ylim()[0])
     y_pos = y + bar_height * 0.1
     
-    # Plot the bar
     ax.plot([x1, x1, x2, x2], [y_pos, y_pos + bar_height, y_pos + bar_height, y_pos], color='black', lw=1)
     
-    # Add the significance star
     ax.text((x1 + x2) / 2, y_pos + bar_height, sig_symbol, 
            ha='center', va='bottom', color='black')
 
 def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=None):
-    """Create boxplots with statistical significance markers, normalized to reference"""
+    """
+    Create boxplots with statistical significance markers, normalized to reference.
+    
+    Args:
+        all_features_data: Dictionary with feature data organized by time and group
+        output_dir: Directory to save output plots
+        custom_labels: Optional list of custom labels for time points
+    """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    # Statistical test results table
     stat_results = []
     
     for feature_name, time_dict in all_features_data.items():
-        # Skip Spike Contrast Trace features that we don't need
         if feature_name.startswith('Spike Contrast Trace'):
             continue
             
@@ -146,10 +170,8 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
             for g in group_names:
                 group_values = time_dict[t].get(g, [])
                 
-                # Process the values to ensure we have scalar values
                 processed_values = []
                 for val in group_values:
-                    # For Spike Contrast (synchrony_with_trace), extract the synchrony value
                     if isinstance(val, dict) and 'synchrony' in val:
                         processed_values.append(val['synchrony'])
                     elif isinstance(val, (list, np.ndarray)) and hasattr(val, 'size') and val.size > 1:
@@ -195,7 +217,6 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
             
             p_value, test_type = perform_statistical_test(sham_data, treatment_data)
             
-            # Ensure p_value is a scalar
             if hasattr(p_value, 'size') and p_value.size > 1:
                 p_value = float(p_value[0])
             elif hasattr(p_value, 'item'):
@@ -207,7 +228,6 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
             # Find maximum value for positioning the significance bar
             all_values = sham_data + treatment_data
             if all_values:
-                # Use list comprehension to ensure we only compare scalar values
                 scalar_values = [v for v in all_values if np.isscalar(v)]
                 max_val = max(scalar_values) if scalar_values else 0
             else:
@@ -215,7 +235,6 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 
             max_values.append(max_val)
             
-            # Save results to table
             stat_results.append({
                 'Feature': feature_name,
                 'Time Point': x_labels[time_idx],
@@ -224,7 +243,7 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
                 'Significant': 'Yes' if p_value <= 0.05 else 'No'
             })
         
-# Create symlog plot with significance markers (similar to boxplots.py relative plot)
+        # Create symlog plot with significance markers (similar to boxplots.py relative plot)
         fig, ax = plt.subplots(figsize=(12, 7))
         sns.set_style("whitegrid")
         
@@ -312,7 +331,12 @@ def plot_feature_values_with_stats(all_features_data, output_dir, custom_labels=
 
 def analyze_repeated_measures(all_features_data, output_dir, custom_labels=None):
     """
-    Perform repeated measures analysis across time points
+    Perform repeated measures analysis across time points.
+    
+    Args:
+        all_features_data: Dictionary with feature data organized by time and group
+        output_dir: Directory to save output results
+        custom_labels: Optional list of custom labels for time points
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -384,6 +408,10 @@ def analyze_repeated_measures(all_features_data, output_dir, custom_labels=None)
         print(f"Repeated measures analysis saved to {output_dir}/repeated_measures_results.csv")
 
 def main():
+    """
+    Main function to run the statistical analysis pipeline.
+    Loads feature data, performs statistical tests, and generates plots with significance markers.
+    """
     parent_dir = "data"
     
     # Check for custom labels

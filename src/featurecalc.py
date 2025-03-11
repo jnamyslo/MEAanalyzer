@@ -1,30 +1,30 @@
-# Projektverzeichnis/
+# Project directory/
 # │
-# ├──  Daten/
+# ├──  Data/
 # │   ├──  BDNF/
 # │   │   ├──  ID2024-01/
-# │   │   │   ├── Datei1.bxr
-# │   │   │   ├── Datei2.bxr
+# │   │   │   ├── File1.bxr
+# │   │   │   ├── File2.bxr
 # │   │   │   ├── ...
 # │   │   ├──  ID2024-03/
-# │   │   │   ├── Datei1.bxr
-# │   │   │   ├── Datei2.bxr
+# │   │   │   ├── File1.bxr
+# │   │   │   ├── File2.bxr
 # │   │   │   ├── ...
 # │   │   ├── ...
 # │   │
 # │   ├──  SHAM/
 # │   │   ├──  ID2024-02/
-# │   │   │   ├── Datei1.bxr
-# │   │   │   ├── Datei2.bxr
+# │   │   │   ├── File1.bxr
+# │   │   │   ├── File2.bxr
 # │   │   │   ├── ...
 # │   │   ├──  ID2024-04/
-# │   │   │   ├── Datei1.bxr
-# │   │   │   ├── Datei2.bxr
+# │   │   │   ├── File1.bxr
+# │   │   │   ├── File2.bxr
 # │   │   │   ├── ...
 # │   │   ├── ...
 
-# Für Input bitte Pfad zu Daten angeben: C:\Projektverzeichnis\Daten
-# Zudem werden .npz-Dateien mit den berechneten Features erstellt und gespeichert. Diese können dann für weitere Analysen verwendet werden. (bspw. Connectivity-Graph)
+# For input please specify path to data: C:\ProjectDirectory\Data
+# Additionally, .npz files with the calculated features are created and saved. These can be used for further analyses (e.g., Connectivity-Graph)
 
 import os
 import re
@@ -40,21 +40,21 @@ from elephant.functional_connectivity import total_spiking_probability_edges
 from elephant.conversion import BinnedSpikeTrain
 from collections import defaultdict
 
-# GPU-Beschleunigung
-use_gpu = 'n' #input("Möchten Sie GPU-Beschleunigung nutzen? (y/n): ").strip().lower()
+# GPU acceleration
+use_gpu = 'n' #input("Do you want to use GPU acceleration? (y/n): ").strip().lower()
 
 if use_gpu == 'y':
     import cupy as cp
     xp = cp
     asnumpy = cp.asnumpy
-    print("GPU-Beschleunigung wurde aktiviert (NVIDIA GPU erforderlich).")
+    print("GPU acceleration has been activated (NVIDIA GPU required).")
 else:
     xp = np
     def asnumpy(x):
         return x
-    print("Keine GPU-Beschleunigung. Das Skript läuft ausschließlich auf der CPU. Um dies zu ändern, bitte in Zeile 44 von 'n' auf 'y' ändern.")
+    print("No GPU acceleration. The script runs exclusively on CPU. To change this, please change line 44 from 'n' to 'y'.")
 
-# Berechnung von Features pro Datei
+# Calculation of features per file
 def process_file(file, well_id='Well_A1'):
     features = {}
     if well_id + '/SpikeTimes' in file:
@@ -86,13 +86,13 @@ def process_file(file, well_id='Well_A1'):
             network_burst_times = np.array([])
             network_burst_times_sec = np.array([])
 
-        # Gesamtdauer
+        # Total duration
         if spike_times_sec.size > 0:
             total_duration_sec = spike_times_sec[-1] - spike_times_sec[0]
         else:
             total_duration_sec = 0
 
-        # Anzahl Spikes, Spike-Rate
+        # Number of Spikes, Spike-Rate
         num_spikes = len(spike_times_sec)
         spike_rate = num_spikes / total_duration_sec if total_duration_sec > 0 else 0
 
@@ -106,7 +106,7 @@ def process_file(file, well_id='Well_A1'):
             isi_mean = 0
             isi_std = 0
 
-        # Entropie der Spike-Verteilung
+        # Entropy of spike distribution
         if num_spikes > 0 and total_duration_sec > 0:
             bin_size = 0.1
             num_bins = int(np.ceil(total_duration_sec / bin_size))
@@ -168,18 +168,18 @@ def process_file(file, well_id='Well_A1'):
         else:
             inbi_mean = 0
 
-        # Anzahl der Kanäle
+        # Number of channels
         unique_channels = np.unique(spike_channels)
         num_channels = len(unique_channels)
 
-        # Pearson-Korrelation
+        # Pearson correlation
         if num_channels > 1:
             channel_spike_times = {ch: spike_times_sec[spike_channels == ch] for ch in unique_channels}
             bin_size_ms = 50
             bin_size_s = bin_size_ms / 1000.0
             num_bins = int(np.ceil(total_duration_sec / bin_size_s))
 
-            # Spike-Matrix pro Kanal
+            # Spike matrix per channel
             spike_trains_xp = xp.zeros((num_channels, num_bins), dtype=xp.float32)
             for idx, ch in enumerate(unique_channels):
                 ch_spike_times = channel_spike_times[ch]
@@ -192,11 +192,11 @@ def process_file(file, well_id='Well_A1'):
                 pearson_corr_matrix_xp = xp.corrcoef(spike_trains_xp)
                 pearson_corr_matrix = asnumpy(pearson_corr_matrix_xp)
 
-                # Obere Dreiecksmatrix zum Mittelwert
+                # Upper triangular matrix for mean
                 upper_triangle_indices = np.triu_indices(num_channels, k=1)
                 mean_pearson_corr = np.mean(pearson_corr_matrix[upper_triangle_indices])
 
-                # Schwellenwert und Anzahl Verbindungen
+                # Threshold and number of connections
                 connectivity_threshold = 0.20
                 connectivity_matrix = (pearson_corr_matrix > connectivity_threshold).astype(int)
                 np.fill_diagonal(connectivity_matrix, 0)
@@ -238,33 +238,34 @@ def process_file(file, well_id='Well_A1'):
             synchrony_with_trace = spike_contrast_result[0]
             spike_contrast_trace = spike_contrast_result[1]
         except Exception as e:
-            print(f"Fehler bei der Berechnung von spike_contrast mit Trace: {e}")
+            print(f"Error calculating spike_contrast with trace: {e}")
             synchrony_with_trace = 0
             spike_contrast_trace = None
 
         # Total Spiking Probability Edges (TSPE) (https://elephant.readthedocs.io/en/latest/reference/_toctree/functional_connectivity/elephant.functional_connectivity.total_spiking_probability_edges.html)
         try:
+        # IF TSPE SHOULD BE CALCULATED, UNCOMMENT THE FOLLOWING LINES:
+
             # binned_ST = BinnedSpikeTrain(spike_trains, bin_size=1*pq.s, n_bins=None, t_start=None, 
             #                              t_stop=None, tolerance=1e-08, sparse_format='csr')
             # tsp_matrix, tsp_delay = total_spiking_probability_edges(
             #     spike_trains=binned_ST,
-            #     surrounding_window_sizes=[3, 4, 5, 6, 7, 8],  # Angepasste Bin-Größe
+            #     surrounding_window_sizes=[3, 4, 5, 6, 7, 8],
             #     observed_window_sizes=[2, 3, 4, 5, 6],
             #     crossover_window_sizes=[0],
             #     max_delay=25,
             #     normalize=False
             # )
             #print("TSPE-Matrix:", tsp_matrix)
-            # tsp_matrix ist ein nxn numpy Array
             mean_tsp = np.mean(tsp_matrix)
-            #print("Durchschnittliche TSPE:", mean_tsp)
+            #print("Average TSPE:", mean_tsp)
         except Exception as e:
-            print(f"Fehler bei der Berechnung von TSPE: {e}")
+            print(f"Error calculating TSPE: {e}")
             tsp_matrix = np.array([])
             tsp_delay = np.array([])
             mean_tsp = np.nan
 
-        # Features speichern
+        # Save features
         features = {
             'Spike Rate (Hz)': spike_rate,
             'Number of Spikes': num_spikes,
@@ -285,7 +286,7 @@ def process_file(file, well_id='Well_A1'):
             'Mean TSPE': mean_tsp
         }
 
-        # Falls Spike Contrast Trace existiert, zusätzliche Ergebnisse
+        # If Spike Contrast Trace exists, add additional results
         if spike_contrast_trace is not None and len(spike_contrast_trace) == 4:
             contrast, active_spiketrains, synchrony_trace, bin_size = spike_contrast_trace
             features['Spike Contrast Trace - Contrast'] = contrast
@@ -293,7 +294,7 @@ def process_file(file, well_id='Well_A1'):
             features['Spike Contrast Trace - Synchrony'] = synchrony_trace
             features['Spike Contrast Trace - Bin Size'] = bin_size
 
-        # Speichern der Ergebnisse
+        # Save results
         output_feature_path = os.path.splitext(file.filename)[0] + '_features.npz'
         np.savez(
             output_feature_path,
@@ -315,22 +316,20 @@ def process_file(file, well_id='Well_A1'):
                                           filename)
         return features
     else:
-        print(f"Warnung: 'SpikeTimes' nicht in {well_id} vorhanden.")
+        print(f"Warning: 'SpikeTimes' not found in {well_id}.")
         return None
 
-# Plotten der Spike Contrast Trace
+# Plotting the Spike Contrast Trace
 def plot_spike_contrast_viziphant(spike_contrast_trace, output_dir, filename):
-#def plot_spike_contrast_viziphant(spike_contrast_trace,spike_trains, output_dir, filename):
     try:
         plot_spike_contrast(spike_contrast_trace, filename=filename)
-        #plot_spike_contrast(spike_contrast_trace, spike_trains, filename)
         plot_path = os.path.join(output_dir, f"{filename}_spike_contrast_trace.png")
         plt.savefig(plot_path)
         plt.close()
     except Exception as e:
-        print(f"Fehler beim Plotten mit viziphant: {e}")
+        print(f"Error plotting with viziphant: {e}")
 
-# Erstellt gruppierte Boxplots: X-Achse = Zeitindex (Dateireihenfolge), Gruppen = LSD/SHAM/...
+# Creates grouped boxplots: X-axis = time index (file order), Groups = LSD/SHAM/...
 def plot_feature_values_over_time(all_features_data, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -355,9 +354,9 @@ def plot_feature_values_over_time(all_features_data, output_dir):
         n_groups = len(group_names)
         width = 0.6 / n_groups
 
-        colors = plt.cm.Set1.colors  # Farbschema Set1
+        colors = plt.cm.Set1.colors
 
-        # Boxplots pro Zeitindex und Gruppe
+        # Boxplots per time index and group
         for time_idx, group_values_list in enumerate(data_for_boxplot):
             for group_idx, group_values in enumerate(group_values_list):
                 position = time_idx + group_idx * width - (width * (n_groups - 1) / 2)
@@ -373,14 +372,14 @@ def plot_feature_values_over_time(all_features_data, output_dir):
         ax.set_ylabel(feature_name, fontsize=12)
         ax.set_xticks(range(n_times))
         ax.set_xticklabels(time_indices_sorted, rotation=45, fontsize=10)
-        ax.set_xlabel("Zeit-Index der Datei (pro ID-Chip ordinale Reihenfolge)", fontsize=12)
+        ax.set_xlabel("Time index of file (ordinal order per ID-chip)", fontsize=12)
 
         legend_patches = [
             plt.Line2D([0], [0], color=colors[idx % len(colors)],
                        label=group, marker='s', linestyle='', markersize=10)
             for idx, group in enumerate(group_names)
         ]
-        ax.legend(handles=legend_patches, title="Gruppen", loc='upper center',
+        ax.legend(handles=legend_patches, title="Groups", loc='upper center',
                   bbox_to_anchor=(0.5, -0.15), ncol=len(group_names), fontsize=10, title_fontsize=12)
 
         plt.tight_layout()
@@ -388,32 +387,32 @@ def plot_feature_values_over_time(all_features_data, output_dir):
         plt.savefig(os.path.join(output_dir, f'{filename_safe}_grouped_boxplot.png'), dpi=300)
         plt.close()
 
-# Hauptfunktion
+# Main function
 def main():
     parent_dir = "data"  
 
-    # Oberste Ebene: Gruppen (z.B. LSD, SHAM, ...)
+    # Top level: Groups (e.g., LSD, SHAM, ...)
     groups = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]
 
-    # all_features_data[feature][time_index][group_name] = [Werte...]
+    # all_features_data[feature][time_index][group_name] = [values...]
     all_features_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-    # Verarbeitung jeder Gruppe
+    # Process each group
     for group in groups:
         group_path = os.path.join(parent_dir, group)
 
-        # Innerhalb der Gruppe nach Unterordnern (Chips) suchen
+        # Within the group, look for subfolders (chips)
         chip_dirs = [d for d in os.listdir(group_path) if os.path.isdir(os.path.join(group_path, d))]
         for chip_dir in chip_dirs:
             chip_path = os.path.join(group_path, chip_dir)
 
-            # .bxr-Dateien in aufsteigender Reihenfolge
+            # .bxr files in ascending order
             bxr_files = sorted([f for f in os.listdir(chip_path) if f.endswith('_NB.bxr')])
 
-            # Jede Datei repräsentiert einen Zeit-Index
+            # Each file represents a time index
             for idx, bxr_file in enumerate(bxr_files, start=1):
                 bxr_path = os.path.join(chip_path, bxr_file)
-                print(f"Verarbeite: Gruppe={group}, Chip={chip_dir}, Datei={bxr_file}, Zeit-Index={idx}")
+                print(f"Processing: Group={group}, Chip={chip_dir}, File={bxr_file}, Time-Index={idx}")
 
                 with h5py.File(bxr_path, 'r') as file:
                     features = process_file(file)
@@ -421,11 +420,11 @@ def main():
                         for feat_key, feat_val in features.items():
                             all_features_data[feat_key][str(idx)][group].append(feat_val)
 
-    # Boxplots über Gruppen und Zeitverläufe
+    # Boxplots over groups and time courses
     #inter_group_output_dir = os.path.join(parent_dir, 'Inter_Group_Boxplots')
     #plot_feature_values_over_time(all_features_data, inter_group_output_dir)
 
-    print("Fertig. Alle Features wurden berechnet.")
+    print("Done. All features have been calculated.")
 
 if __name__ == "__main__":
     main()

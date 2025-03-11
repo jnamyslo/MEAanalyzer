@@ -1,5 +1,3 @@
-#Takes long to compute. Chiappalone Ansatz!
-
 import os
 import h5py
 import numpy as np
@@ -7,14 +5,14 @@ import time
 
 def detect_bursts(spike_times, isi_threshold_factor=0.25, min_spikes_in_burst=3):
     """
-    Erkennung von Bursts nach Baker et al.
+    Burst detection according to Baker et al.
     Parameters:
-    - spike_times: Liste der Spike-Zeitpunkte.
-    - isi_threshold_factor: Faktor zur Bestimmung des ISI-Schwellenwerts.
-    - min_spikes_in_burst: Minimale Anzahl von Spikes in einem Burst.
+    - spike_times: List of spike timestamps.
+    - isi_threshold_factor: Factor for determining the ISI threshold.
+    - min_spikes_in_burst: Minimum number of spikes in a burst.
     
     Returns:
-    - burst_times: Liste von Tupeln (Burst-Start, Burst-Ende).
+    - burst_times: List of tuples (burst start, burst end).
     """
     if len(spike_times) < min_spikes_in_burst:
         return []
@@ -56,19 +54,19 @@ def detect_bursts(spike_times, isi_threshold_factor=0.25, min_spikes_in_burst=3)
 
 def detect_network_bursts(spikes_per_channel, bin_size=0.025, threshold=9, min_duration=0.1):
     """
-    Erkennt Network-Bursts basierend auf der Synchronisation von Aktivität über mehrere Kanäle.
-    Stellt sicher, dass überlappende Network-Bursts zu einem Ereignis zusammengefasst werden.
+    Detects network bursts based on the synchronization of activity across multiple channels.
+    Ensures that overlapping network bursts are merged into one event.
 
-    Erkennung von Netzwerk-Bursts nach dem Ansatz von Chiappalone:
+    Network burst detection using the Chiappalone approach:
     
     Parameters:
-    - spikes_per_channel: Dictionary {Kanal: [SpikeTimes, ...]} mit Spike-Zeiten pro Kanal
-    - bin_size: Zeitfenstergröße in Sekunden für die Analyse der synchronen Aktivität
-    - threshold: Schwellenwert für das Produkt aus aktiven Kanälen und Spike-Anzahl
-    - min_duration: Minimale Dauer eines Network-Bursts in Sekunden
+    - spikes_per_channel: Dictionary {channel: [SpikeTimes, ...]} with spike times per channel
+    - bin_size: Time window size in seconds for analyzing synchronous activity
+    - threshold: Threshold for the product of active channels and spike count
+    - min_duration: Minimum duration of a network burst in seconds
     
     Returns:
-    - network_bursts: Liste von Tupeln (NetworkBurst-Start, NetworkBurst-Ende)
+    - network_bursts: List of tuples (NetworkBurst start, NetworkBurst end)
     """
     if not spikes_per_channel:
         return []
@@ -98,7 +96,7 @@ def detect_network_bursts(spikes_per_channel, bin_size=0.025, threshold=9, min_d
     in_burst = False
     burst_start = None
 
-    # Durch die Bins iterieren und zusammenhängende True-Bereiche als Network-Burst bestimmen
+    # Iterate through bins and identify connected True regions as network bursts
     for i, is_burst in enumerate(network_burst_bins):
         if is_burst:
             if not in_burst:
@@ -116,7 +114,7 @@ def detect_network_bursts(spikes_per_channel, bin_size=0.025, threshold=9, min_d
         if (burst_end - burst_start) >= min_duration:
             network_bursts.append((burst_start, burst_end))
 
-    # Überlappende Network-Bursts zusammenfassen
+    # Merge overlapping network bursts
     merged_network_bursts = []
     for burst in network_bursts:
         if not merged_network_bursts:
@@ -124,7 +122,7 @@ def detect_network_bursts(spikes_per_channel, bin_size=0.025, threshold=9, min_d
         else:
             last_start, last_end = merged_network_bursts[-1]
             curr_start, curr_end = burst
-            # Falls sich Zeitintervalle überlappen oder direkt anschließen, zusammenfassen
+            # If time intervals overlap or connect directly, merge them
             if curr_start <= last_end:
                 merged_network_bursts[-1] = (last_start, max(last_end, curr_end))
             else:
@@ -135,7 +133,7 @@ def detect_network_bursts(spikes_per_channel, bin_size=0.025, threshold=9, min_d
 
 def load_spike_data(input_file):
     """
-    Lädt Spike-Daten aus einer bestehenden .bxr-Datei.
+    Loads spike data from an existing .bxr file.
     """
     with h5py.File(input_file, 'r') as f:
         spike_times = f['Well_A1/SpikeTimes'][:]
@@ -151,7 +149,7 @@ def save_burst_data(output_file,
                     SpikeNetworkBurstTimes,
                     sampling_rate):
     """
-    Speichert die Burst-Ergebnisse in einer neuen .bxr-Datei.
+    Saves burst results in a new .bxr file.
     """
     with h5py.File(output_file, 'w') as f:
         f.attrs['Version'] = 301
@@ -170,19 +168,19 @@ def save_burst_data(output_file,
         spike_grp.create_dataset('SpikeNetworkBurstTimes',
                                  data=np.array(SpikeNetworkBurstTimes, dtype=np.int64))
 
-        print(f"BXR-Datei '{output_file}' erfolgreich gespeichert.")
+        print(f"BXR file '{output_file}' successfully saved.")
 
 def process_bxr_file(input_file):
     """
-    Verarbeitet eine bestehende .bxr-Datei, erkennt Bursts und NetworkBursts
-    und speichert die Ergebnisse in einer neuen Datei.
+    Processes an existing .bxr file, detects bursts and network bursts,
+    and saves the results in a new file.
     """
     start_time = time.time()
     
     try:
         spike_times, spike_channels, sampling_rate = load_spike_data(input_file)
-        print(f"Verarbeite Datei: {input_file}")
-        print(f"Geladene Spike-Daten: {len(spike_times)} Spikes über {len(np.unique(spike_channels))} Kanäle.")
+        print(f"Processing file: {input_file}")
+        print(f"Loaded spike data: {len(spike_times)} spikes across {len(np.unique(spike_channels))} channels.")
         
         # Convert spike times from frames to seconds
         spike_times_sec = spike_times / sampling_rate
@@ -218,8 +216,8 @@ def process_bxr_file(input_file):
         SpikeNetworkBurstTimes = [(int(start * sampling_rate), int(end * sampling_rate)) 
                                 for start, end in network_bursts_sec]
         
-        print(f"Erkannte Bursts: {len(SpikeBurstTimes)}")
-        print(f"Erkannte NetworkBursts: {len(SpikeNetworkBurstTimes)}")
+        print(f"Detected bursts: {len(SpikeBurstTimes)}")
+        print(f"Detected network bursts: {len(SpikeNetworkBurstTimes)}")
 
         base, ext = os.path.splitext(input_file)
         output_file = f"{base}_NB{ext}"
@@ -235,15 +233,15 @@ def process_bxr_file(input_file):
         )
         
         end_time = time.time()
-        print(f"Verarbeitung abgeschlossen. Datei gespeichert unter: {output_file}")
-        print(f"Dauer: {end_time - start_time:.2f} Sekunden\n")
+        print(f"Processing complete. File saved as: {output_file}")
+        print(f"Duration: {end_time - start_time:.2f} seconds\n")
         
     except Exception as e:
-        print(f"Fehler bei der Verarbeitung der Datei '{input_file}': {e}\n")
+        print(f"Error processing file '{input_file}': {e}\n")
 
 def find_bxr_files(folder_path):
     """
-    Findet alle .bxr-Dateien rekursiv im angegebenen Ordner.
+    Recursively finds all .bxr files in the specified folder.
     """
     bxr_files = []
     for root, dirs, files in os.walk(folder_path):
@@ -254,28 +252,28 @@ def find_bxr_files(folder_path):
 
 def process_all_bxr_files(folder_path):
     """
-    Findet und verarbeitet alle .bxr-Dateien im angegebenen Ordner rekursiv.
+    Finds and processes all .bxr files in the specified folder recursively.
     """
     start_time = time.time()
     bxr_files = find_bxr_files(folder_path)
-    print(f"Gefundene .bxr-Dateien: {len(bxr_files)}\n")
+    print(f"Found .bxr files: {len(bxr_files)}\n")
     
     if not bxr_files:
-        print("Keine .bxr-Dateien im angegebenen Ordner gefunden.")
+        print("No .bxr files found in the specified folder.")
         return
     
     for idx, bxr_file in enumerate(bxr_files, 1):
-        print(f"Verarbeite Datei {idx} von {len(bxr_files)}:")
+        print(f"Processing file {idx} of {len(bxr_files)}:")
         process_bxr_file(bxr_file)
     
     end_time = time.time()
-    print(f"Fertig. Gesamtzeit: {end_time - start_time:.2f} Sekunden.")
+    print(f"Done. Total time: {end_time - start_time:.2f} seconds.")
 
 def main():
     folder_path = "data"
     
     if not os.path.isdir(folder_path):
-        print(f"Der Ordner '{folder_path}' existiert nicht oder ist kein Verzeichnis.")
+        print(f"The folder '{folder_path}' does not exist or is not a directory.")
         return
     
     process_all_bxr_files(folder_path)

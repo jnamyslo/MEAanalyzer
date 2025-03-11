@@ -4,34 +4,34 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-# Diese Funktion erstellt und speichert den Konnektivitätsgraphen für eine gegebene .bxr-Datei
+# This function creates and saves the connectivity graph for a given .bxr file
 def plot_connectivity_graph(filepath, output_dir, connectivity_threshold, 
                            max_connections_per_node, betweenness_threshold, dpi=600):
     betweenness_threshold = betweenness_threshold / 1000
-    # Speicherpfad für den Konnektivitätsgraphen
+    # Path for saving the connectivity graph
     output_path = os.path.join(output_dir, f'ConnGraph_{os.path.splitext(os.path.basename(filepath))[0]}.png')
 
-    # Überprüfung, ob der Graph bereits existiert
+    # Check if the graph already exists
     if os.path.exists(output_path):
-        print(f"Überspringe '{output_path}', da der Konnektivitätsgraph bereits existiert.")
+        print(f"Skipping '{output_path}', as the connectivity graph already exists.")
         return None
 
-    # Pfad zur .npz-Datei basierend auf dem .bxr-Dateinamen
+    # Path to the .npz file based on the .bxr filename
     npz_file_path = os.path.splitext(filepath)[0] + '_features.npz'
 
-    # Überprüfen, ob die .npz-Datei existiert
+    # Check if the .npz file exists
     if not os.path.exists(npz_file_path):
-        print(f"Warnung: '{npz_file_path}' nicht gefunden. Überspringe Datei {os.path.basename(filepath)}.")
+        print(f"Warning: '{npz_file_path}' not found. Skipping file {os.path.basename(filepath)}.")
         return None
 
-    # Laden der Daten aus der .npz-Datei
+    # Load data from the .npz file
     data = np.load(npz_file_path, allow_pickle=True)
     pearson_corr_matrix = data['pearson_corr_matrix']
     pearson_corr_matrix = np.where(pearson_corr_matrix > connectivity_threshold, pearson_corr_matrix, 0) #NEW
     unique_channels = data['unique_channels']
     num_channels = data['num_channels']
 
-    # Netzwerk erstellen
+    # Create network
     G = nx.Graph()
     for i in range(num_channels):
         neighbors = [(j, pearson_corr_matrix[i, j]) for j in range(num_channels) if i != j]
@@ -41,31 +41,31 @@ def plot_connectivity_graph(filepath, output_dir, connectivity_threshold,
         G.add_weighted_edges_from(top_connections)
 
     if len(G.nodes) == 0:
-        print(f"Warnung: Kein Netzwerk für {os.path.basename(filepath)} generiert.")
+        print(f"Warning: No network generated for {os.path.basename(filepath)}.")
         return None
 
-    # Betweenness-Zentralität berechnen
+    # Calculate betweenness centrality
     betweenness = nx.betweenness_centrality(G)
     filtered_nodes = [node for node, centrality in betweenness.items() if centrality >= betweenness_threshold]
     G_filtered = G.subgraph(filtered_nodes).copy()
     
     if len(G_filtered.nodes) == 0:
-        print(f"Warnung: Nach dem Filtern keine Knoten für {os.path.basename(filepath)} übrig.")
+        print(f"Warning: No nodes remaining after filtering for {os.path.basename(filepath)}.")
         return None
 
     betweenness_filtered = nx.betweenness_centrality(G_filtered)
     node_sizes = [1500 * betweenness_filtered.get(int(channel), 0) + 1 for channel in G_filtered.nodes]
 
-    # Positionen für die Knoten
+    # Node positions
     pos = {channel: (channel % 64, channel // 64) for channel in G_filtered.nodes}
 
-    # Netzwerk plotten
+    # Plot network
     plt.figure(figsize=(12, 12))
     edges = [(u, v, d) for u, v, d in G_filtered.edges(data=True) if d['weight'] > connectivity_threshold]
 
     #edges = list(G_filtered.edges(data=True))
     if len(edges) == 0:
-        print(f"Warnung: Keine Kanten für {os.path.basename(filepath)} vorhanden. Überspringe Datei.")
+        print(f"Warning: No edges available for {os.path.basename(filepath)}. Skipping file.")
         plt.close()
         return None
     weights = [d['weight'] for _, _, d in edges]
@@ -87,7 +87,7 @@ def plot_connectivity_graph(filepath, output_dir, connectivity_threshold,
 
 def create_summary_plot(image_paths, summary_path, dpi=300):
     if not image_paths:
-        print(f"Keine Bilder zum Zusammenfügen für {os.path.basename(summary_path)} gefunden.")
+        print(f"No images found to combine for {os.path.basename(summary_path)}.")
         return
 
     num_images = len(image_paths)
@@ -115,12 +115,12 @@ def process_all_bxr_files_in_directory(root_dir, connectivity_threshold,
     for subdir, _, files in os.walk(root_dir):
         folder_name = os.path.basename(subdir)
         if folder_name.startswith('ID'):
-            print(f'Verarbeite Ordner: {folder_name}')
+            print(f'Processing folder: {folder_name}')
             individual_plots = []
             for file in files:
                 if file.endswith('_NB.bxr'):
                     filepath = os.path.join(subdir, file)
-                    print(f'  Verarbeite Datei: {file}')
+                    print(f'  Processing file: {file}')
                     plot_path = plot_connectivity_graph(
                         filepath, 
                         connectivity_output_dir, 
@@ -134,19 +134,19 @@ def process_all_bxr_files_in_directory(root_dir, connectivity_threshold,
             if individual_plots:
                 summary_filename = f'{folder_name}_summary_connectivity_graphs.png'
                 summary_path = os.path.join(connectivity_output_dir, summary_filename)
-                print(f'  Erstelle Übersichtsplot: {summary_filename}')
+                print(f'  Creating summary plot: {summary_filename}')
                 create_summary_plot(individual_plots, summary_path)
             else:
-                print(f'  Keine gültigen Konnektivitätsgraphen für {folder_name} gefunden.')
+                print(f'  No valid connectivity graphs found for {folder_name}.')
 
 def main():
     root_dir = "data"
     connectivity_threshold = 0.2
     max_connections_per_node = 20
-    betweenness_threshold = 0.8 # Hauptparameter um geplottete Netzwerkdichte zu definieren. Zur Vergleichbarkeit pro Experiment den Parameter nicht ändern!
+    betweenness_threshold = 0.8 # Main parameter for defining plotted network density. For comparability, do not change this parameter per experiment!
 
     if not os.path.isdir(root_dir):
-        print('Der angegebene Pfad ist kein gültiges Verzeichnis.')
+        print('The specified path is not a valid directory.')
         return
 
     process_all_bxr_files_in_directory(
